@@ -227,4 +227,3 @@ If you find this useful, please consider starring the repository!
 ---
 
 **Built with ❤️ by someone who thought 97 free APIs should work as one.**
-```
