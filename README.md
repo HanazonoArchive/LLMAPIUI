@@ -13,33 +13,6 @@
 
 **LLMAPIUI** is a production-grade, browser-based LLM orchestrator that aggregates 50+ unique LLM models (97 provider-prefixed endpoints) into a single, intelligent, self-healing API gateway. It provides speed-based routing, automatic fallback, persistent cooldown tracking, cut-off detection, and a beautiful chat interface — all running at **zero cost**.
 
-┌─────────────────────────────────────────────────────────────┐
-│                    LLMAPIUI                                  │
-│                                                              │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐      │
-│  │   Groq      │    │  Cerebras   │    │ DeepInfra   │      │
-│  └──────┬──────┘    └──────┬──────┘    └──────┬──────┘      │
-│         │                  │                  │              │
-│         └──────────────────┼──────────────────┘              │
-│                            │                                 │
-│                   ┌────────▼────────┐                        │
-│                   │  Intelligent    │                        │
-│                   │    Router       │                        │
-│                   └────────┬────────┘                        │
-│                            │                                 │
-│              ┌─────────────┼─────────────┐                   │
-│              ▼             ▼             ▼                   │
-│        ┌──────────┐  ┌──────────┐  ┌──────────┐             │
-│        │ Cooldown │  │ Fallback │  │  Cache   │             │
-│        │ Manager  │  │ Handler  │  │  Layer   │             │
-│        └──────────┘  └──────────┘  └──────────┘             │
-│                                                              │
-│                    ┌─────────────┐                           │
-│                    │   Chat UI   │                           │
-│                    │  + Markdown │                           │
-│                    └─────────────┘                           │
-└─────────────────────────────────────────────────────────────┘
-
 ---
 
 ## ✨ Features
@@ -58,43 +31,6 @@
 | **🎨 Markdown Rendering** | Full markdown support with DOMPurify sanitization |
 | **🩺 Health Checks** | Automatic stuck cooldown recovery |
 | **📝 Live Logging** | Real-time system logs with color-coded levels |
-
----
-
-## 🏗️ Architecture
-
-
-┌─────────────────────────────────────────────────────────────────┐
-│                         CLIENT BROWSER                          │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐          │
-│  │   UI Layer  │◄──►│  App Logic  │◄──►│ Storage     │          │
-│  │  (HTML/CSS) │    │   (JS)      │    │ (localStorage)│         │
-│  └─────────────┘    └──────┬──────┘    └─────────────┘          │
-│                            │                                     │
-│                     ┌──────▼──────┐                              │
-│                     │   Router    │                              │
-│                     │ + Cooldown  │                              │
-│                     │ + Fallback  │                              │
-│                     └──────┬──────┘                              │
-│                            │                                     │
-│                     ┌──────▼──────┐                              │
-│                     │  Unified    │                              │
-│                     │  API Call   │                              │
-│                     └──────┬──────┘                              │
-└────────────────────────────┼─────────────────────────────────────┘
-                             │
-                    ┌────────▼────────┐
-                    │  Your Backend   │
-                    │  (LiteLLM/      │
-                    │   OpenRouter)   │
-                    └────────┬────────┘
-                             │
-        ┌────────────────────┼────────────────────┐
-        ▼                    ▼                    ▼
-   ┌─────────┐          ┌─────────┐          ┌─────────┐
-   │  Groq   │          │Cerebras │          │DeepInfra│
-   └─────────┘          └─────────┘          └─────────┘
 
 ---
 
