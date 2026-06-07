@@ -1,7 +1,7 @@
 
 # 🧠 LLMAPIUI
 
-### Unified LLM Gateway · 97 Models · One Interface
+### Unified LLM Gateway · One Interface
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-blue.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
@@ -11,7 +11,7 @@
 
 ## 📖 Overview
 
-**LLMAPIUI** is a production-grade, browser-based LLM orchestrator that aggregates 50+ unique LLM models (97 provider-prefixed endpoints) into a single, intelligent, self-healing API gateway. It provides speed-based routing, automatic fallback, persistent cooldown tracking, cut-off detection, and a beautiful chat interface — all running at **zero cost**.
+**LLMAPIUI** is a production-grade, browser-based LLM orchestrator that aggregates unique LLM models into a single, intelligent, self-healing API gateway. It provides speed-based routing, automatic fallback, persistent cooldown tracking, cut-off detection, and a beautiful chat interface.
 
 ---
 
@@ -36,7 +36,6 @@
 
 ## 📦 Prerequisites
 
-- A unified LLM API endpoint (e.g., [LiteLLM](https://github.com/BerriAI/litellm), [OpenRouter](https://openrouter.ai/))
 - Modern web browser (Chrome, Firefox, Edge, Safari)
 - (Optional) Local server for production deployment
 
@@ -47,7 +46,7 @@
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/llmapiui.git
+git clone https://github.com/hanazonoarchive/llmapiui.git
 cd llmapiui
 ```
 
@@ -55,7 +54,7 @@ cd llmapiui
 
 1. Open `index.html` in your browser
 2. In the sidebar, enter your:
-   - **Base URL** (e.g., `http://localhost:5173/v1`)
+   - **Base URL** (e.g., `http://localhost:8000/v1`)
    - **API Key** (your unified API key)
    - **Cooldown time** (default: 99 seconds)
    - **System Guardrails** (custom instructions for all LLMs)
@@ -70,18 +69,6 @@ Click **Save & Connect**, then start sending messages. The router will automatic
 - Handle failures gracefully
 
 ---
-
-## ⚙️ Configuration
-
-### Environment Variables (for production)
-
-Create a `.env` file if deploying behind a proxy:
-
-```env
-UNIFIED_API_URL=https://your-api-endpoint.com/v1
-UNIFIED_API_KEY=your-api-key
-PORT=3000
-```
 
 ### Settings Panel Options
 
