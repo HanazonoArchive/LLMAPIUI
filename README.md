@@ -1,5 +1,4 @@
-
-# 🧠 LLMAPIUI
+LLMAPIUI
 
 ### Unified LLM Gateway · One Interface
 
@@ -7,13 +6,10 @@
 [![JavaScript](https://img.shields.io/badge/JavaScript-ES6+-blue.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
 [![Status](https://img.shields.io/badge/status-stable-brightgreen.svg)]()
 
----
-
 ## 📖 Overview
 
 **LLMAPIUI** is a production-grade, browser-based LLM orchestrator that aggregates unique LLM models into a single, intelligent, self-healing API gateway. It provides speed-based routing, automatic fallback, persistent cooldown tracking, cut-off detection, and a beautiful chat interface.
 
----
 
 ## ✨ Features
 
