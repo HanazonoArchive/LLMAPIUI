@@ -1,7 +1,5 @@
 // ============================================================
-// UNIVERSAL LLM ORCHESTRATOR - FULLY FIXED VERSION WITH TTS PIPELINE
-// Fixed: API key warning, conversation trimming, retry depth, XSS protection
-// Added: Markdown stripping, automated Kokoro-TTS port forwarding
+// UNIVERSAL LLM ORCHESTRATOR
 // ============================================================
 
 // ==================== APPLICATION STATE ====================
@@ -35,7 +33,7 @@ let securityWarningShown = false;
 document.addEventListener('DOMContentLoaded', () => {
     // Show security warning for local storage API keys (personal use only)
     if (!securityWarningShown) {
-        console.warn('🔐 API Key stored in localStorage - This is safe for personal use only. Do not deploy publicly.');
+        console.warn('API Key stored in localStorage - This is safe for personal use only. Do not deploy publicly.');
         securityWarningShown = true;
     }
     
@@ -78,7 +76,7 @@ function log(message, type = 'info') {
 function clearLogs() {
     const logsContainer = document.getElementById('logs');
     if (logsContainer) {
-        logsContainer.innerHTML = '<div class="log-entry">🧹 Logs cleared.</div>';
+        logsContainer.innerHTML = '<div class="log-entry">Logs cleared.</div>';
     }
 }
 
@@ -130,11 +128,11 @@ function loadSettings() {
     if (maxTokensInput) maxTokensInput.value = MAX_TOKENS_PER_MODEL;
     
     if (!API_KEY || !BASE_URL) {
-        log("⚠️ Configure API credentials in sidebar.", "warning");
+        log("Configure API credentials in sidebar.", "warning");
         return false;
     }
     
-    log(`✅ Connected to: ${BASE_URL}`, "success");
+    log(`Connected to: ${BASE_URL}`, "success");
     return true;
 }
 
@@ -165,7 +163,7 @@ function saveSettings() {
     localStorage.setItem('llmapiui_max_retries', newRetries);
     localStorage.setItem('llmapiui_max_tokens', newMaxTokens);
     
-    log("✅ Settings saved.", "success");
+    log("Settings saved.", "success");
     loadSettings();
     fetchModels();
 }
@@ -253,7 +251,7 @@ function triggerCooldown(modelObj) {
                 modelObj.cooldownUntil = null;
                 renderModelList();
                 saveCooldownState();
-                log(`✅ [${modelObj.id}] cooldown complete`, 'success');
+                log(`[${modelObj.id}] cooldown complete`, 'success');
             }
         }
         
@@ -310,12 +308,12 @@ async function fetchModels() {
             });
             
             loadCooldownState();
-            log(`✅ Synced ${models.length} models. Active: ${models.filter(m => m.status === 'green' && !m.excluded).length}`, 'success');
+            log(`Synced ${models.length} models. Active: ${models.filter(m => m.status === 'green' && !m.excluded).length}`, 'success');
         } else {
             throw new Error("No models returned");
         }
     } catch (err) {
-        log(`⚠️ Fetch failed: ${err.message}. Using fallback.`, 'warning');
+        log(`Fetch failed: ${err.message}. Using fallback.`, 'warning');
         createMockModels();
     }
     
@@ -346,7 +344,7 @@ function createMockModels() {
     }
     
     loadCooldownState();
-    log(`📋 Created ${models.length} mock models.`, 'yellow');
+    log(`Created ${models.length} mock models.`, 'yellow');
 }
 
 function renderModelList() {
@@ -453,7 +451,7 @@ function getNextAvailableModel() {
     saveLastTestedHistory();
     
     const latencyInfo = modelLatency.get(selected.id);
-    log(`🎯 Router selected: ${selected.id} (${latencyInfo ? Math.round(latencyInfo) + 'ms' : 'untested'})`, 'info');
+    log(`Router selected: ${selected.id} (${latencyInfo ? Math.round(latencyInfo) + 'ms' : 'untested'})`, 'info');
     
     return selected;
 }
@@ -483,7 +481,7 @@ function autoExcludeModel(modelId, reason) {
     saveCooldownState();
     renderModelList();
     
-    log(`🚫 AUTO-EXCLUDED [${model.id}] (${reason})`, 'error');
+    log(`AUTO-EXCLUDED [${model.id}] (${reason})`, 'error');
 }
 
 function handleTokenLimitExceeded(modelId, error) {
@@ -492,7 +490,7 @@ function handleTokenLimitExceeded(modelId, error) {
     
     model.tokenLimitHits = (model.tokenLimitHits || 0) + 1;
     
-    log(`⚠️ Token limit hit on [${model.id}] (${model.tokenLimitHits}x)`, 'warning');
+    log(`Token limit hit on [${model.id}] (${model.tokenLimitHits}x)`, 'warning');
     
     if (model.tokenLimitHits >= 2) {
         autoExcludeModel(modelId, `Token limit exceeded ${model.tokenLimitHits} times`);
@@ -539,7 +537,7 @@ function validateResponse(response, rulesInjected) {
     const wordCount = response.split(/\s+/).length;
     
     if (wordCount > 30 && isResponseCutOff(response)) {
-        log(`⚠️ Response appears cut-off (ends mid-sentence)`, 'warning');
+        log(`Response appears cut-off (ends mid-sentence)`, 'warning');
         const error = new Error("Response cut-off detected");
         error.isCutOff = true;
         error.partialResponse = response;
@@ -651,7 +649,7 @@ function trimConversationHistory() {
 // ==================== CORE MESSAGE SENDING ====================
 async function sendMessage() {
     if (!API_KEY || !BASE_URL) {
-        log("❌ Please configure API credentials first.", "error");
+        log("Please configure API credentials first.", "error");
         alert("Please configure API credentials in the sidebar first.");
         return;
     }
@@ -681,7 +679,7 @@ async function sendMessage() {
             };
             conversationHistory.unshift(systemMessage);
             systemMessageAdded = true;
-            log("📋 Permanent system guardrails added to conversation", 'success');
+            log("Permanent system guardrails added to conversation", 'success');
         }
         
         conversationHistory.push(
@@ -706,13 +704,13 @@ async function sendMessage() {
             }
         }
         
-        log(`❌ All models failed: ${error.message}`, 'error');
+        log(`All models failed: ${error.message}`, 'error');
         
         const errorMsg = document.createElement('div');
         errorMsg.className = 'message assistant';
         errorMsg.style.opacity = '0.7';
         errorMsg.style.fontStyle = 'italic';
-        errorMsg.innerText = "⚠️ All LLM endpoints are currently unavailable. Please check your connection or wait for cooldowns.";
+        errorMsg.innerText = "All LLM endpoints are currently unavailable. Please check your connection or wait for cooldowns.";
         chatContainer?.appendChild(errorMsg);
         chatContainer?.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
         
@@ -721,11 +719,11 @@ async function sendMessage() {
     }
 }
 
-// ==================== SEND MESSAGE WITH RETRY (FIXED - Depth limit) ====================
+// ==================== SEND MESSAGE WITH RETRY ====================
 async function sendMessageWithRetry(prompt, previousPartialResponse = null, retryDepth = 0) {
     const MAX_DEPTH = 3;
     if (retryDepth > MAX_DEPTH) {
-        log(`⚠️ Max retry depth reached (${MAX_DEPTH}), giving up`, 'error');
+        log(`Max retry depth reached (${MAX_DEPTH}), giving up`, 'error');
         throw new Error("Max retry depth exceeded");
     }
     
@@ -761,10 +759,10 @@ async function sendMessageWithRetry(prompt, previousPartialResponse = null, retr
         if (isContinuation) {
             finalPrompt = `[CONTINUE DIRECTLY from where you stopped. Do not repeat. Start from the last word:]\n${previousPartialResponse}`;
             maxTokensValue = Math.min(MAX_TOKENS_PER_MODEL * 2, 8000);
-            log(`📝 Continuation request (depth ${retryDepth + 1})`, 'info');
+            log(`Continuation request (depth ${retryDepth + 1})`, 'info');
         }
         
-        log(`📡 Attempt ${attempt + 1}/${MAX_RETRIES} on ${model.id}${isContinuation ? ' (continuation)' : ''}`, 'info');
+        log(`Attempt ${attempt + 1}/${MAX_RETRIES} on ${model.id}${isContinuation ? ' (continuation)' : ''}`, 'info');
         highlightModelInUI(model.id);
         
         const startTime = performance.now();
@@ -782,11 +780,11 @@ async function sendMessageWithRetry(prompt, previousPartialResponse = null, retr
             
             const validated = validateResponse(finalResponse, GUARDRAILS);
             if (validated) {
-                log(`✅ Success on ${model.id} (${Math.round(latency)}ms)`, 'success');
+                log(`Success on ${model.id} (${Math.round(latency)}ms)`, 'success');
                 triggerCooldown(model);
                 return validated;
             } else {
-                log(`⚠️ ${model.id} returned invalid response, marking failed`, 'warning');
+                log(`${model.id} returned invalid response, marking failed`, 'warning');
                 failedModels.add(model.id);
                 
                 model.failureCount = (model.failureCount || 0) + 1;
@@ -816,29 +814,29 @@ async function sendMessageWithRetry(prompt, previousPartialResponse = null, retr
             
             // Handle cut-off with depth tracking (iterative, not recursive)
             if (error.isCutOff && error.partialResponse && !isContinuation && retryDepth < MAX_DEPTH) {
-                log(`📦 Cut-off detected, retrying with continuation (depth ${retryDepth + 1})`, 'warning');
+                log(`Cut-off detected, retrying with continuation (depth ${retryDepth + 1})`, 'warning');
                 // Recursive call with increased depth
                 return sendMessageWithRetry(prompt, error.partialResponse, retryDepth + 1);
             }
             
             // Special handling for different error types
             if (error.message.includes('content-length') || error.message.includes('incomplete')) {
-                log(`📦 ${model.id} returned incomplete response - auto-excluding`, 'error');
+                log(`${model.id} returned incomplete response - auto-excluding`, 'error');
                 autoExcludeModel(model.id, 'incomplete response (content-length mismatch)');
             } else if (error.status === 429 || error.message.includes('rate limit')) {
-                log(`🚫 ${model.id} rate limited (${Math.round(latency)}ms)`, 'warning');
+                log(`${model.id} rate limited (${Math.round(latency)}ms)`, 'warning');
                 triggerCooldown(model);
             } else if (error.status === 401 || error.status === 403) {
                 autoExcludeModel(model.id, 'authentication failed');
             } else if (error.message.includes('timeout')) {
-                log(`⏰ ${model.id} timeout (${Math.round(latency)}ms)`, 'warning');
+                log(`${model.id} timeout (${Math.round(latency)}ms)`, 'warning');
             } else if (error.status === 500 || error.status === 502 || error.status === 503) {
-                log(`⚠️ ${model.id} server error (${error.status})`, 'warning');
+                log(`${model.id} server error (${error.status})`, 'warning');
                 if (modelObj && modelObj.failureCount >= 2) {
                     autoExcludeModel(model.id, `${modelObj.failureCount} server errors`);
                 }
             } else {
-                log(`❌ ${model.id} failed: ${error.message}`, 'error');
+                log(`${model.id} failed: ${error.message}`, 'error');
                 if (modelObj && modelObj.failureCount >= 2) {
                     autoExcludeModel(model.id, `${modelObj.failureCount} consecutive failures`);
                 }
@@ -960,7 +958,7 @@ async function forwardToTTS(textResponse) {
     
     // Safety check: if text becomes empty after stripping, skip it
     if (!cleanSpeechText) {
-        log(`⚠️ TTS skipped: Response text contains no speakable prose.`, 'warning');
+        log(`TTS skipped: Response text contains no speakable prose.`, 'warning');
         return;
     }
 
@@ -981,10 +979,10 @@ async function forwardToTTS(textResponse) {
         }
 
         const data = await response.json();
-        log(`✅ TTS Audio Compiled: ${data.message || "Success"}`, 'success');
+        log(`TTS Audio Compiled: ${data.message || "Success"}`, 'success');
 
     } catch (error) {
-        log(`🚨 TTS pipeline error: ${error.message}`, 'error');
+        log(`TTS pipeline error: ${error.message}`, 'error');
         console.error("TTS Forwarding Failed:", error);
     }
 }
@@ -1035,7 +1033,7 @@ function appendMessage(text, sender, modelLabel = null) {
             bubble.innerHTML = DOMPurify.sanitize(rawHtml);
         } else if (typeof marked !== "undefined" && typeof DOMPurify === "undefined") {
             // UNSAFE: Markdown loaded but no DOMPurify - use text content for security
-            log(`⚠️ DOMPurify not loaded - rendering markdown as plain text for security`, 'warning');
+            log(`DOMPurify not loaded - rendering markdown as plain text for security`, 'warning');
             bubble.innerText = text;
         } else {
             // No markdown - plain text
@@ -1049,7 +1047,7 @@ function appendMessage(text, sender, modelLabel = null) {
     if (modelLabel && sender === 'assistant') {
         const meta = document.createElement('span');
         meta.className = 'message-meta';
-        meta.innerText = `⚡ via ${modelLabel}`;
+        meta.innerText = `via ${modelLabel}`;
         bubble.appendChild(meta);
     }
     
