@@ -1,7 +1,6 @@
 // ============================================================
-// UNIVERSAL LLM ORCHESTRATOR - FULLY FIXED VERSION WITH TTS PIPELINE
+// UNIVERSAL LLM ORCHESTRATOR - FULLY FIXED VERSION
 // Fixed: API key warning, conversation trimming, retry depth, XSS protection
-// Added: Markdown stripping, automated Kokoro-TTS port forwarding
 // ============================================================
 
 // ==================== APPLICATION STATE ====================
@@ -670,9 +669,6 @@ async function sendMessage() {
         hideTypingIndicator();
         appendMessage(response, 'assistant');
         
-        // 🚀 FIRE-AND-FORGET TO KOKORO-TTS FILTER CHAIN
-        forwardToTTS(response);
-        
         // Add system message only once at the beginning of conversation
         if (!systemMessageAdded && conversationHistory.length === 0) {
             const systemMessage = {
@@ -916,77 +912,6 @@ function startHealthChecks() {
         }
         
     }, 120000);
-}
-
-// ==================== TTS UTILITIES & FORWARDING ====================
-function stripMarkdownForSpeech(text) {
-    if (!text) return "";
-
-    let cleanText = text;
-
-    // 1. Remove code blocks (```code```)
-    cleanText = cleanText.replace(/```[\s\S]*?```/g, "");
-
-    // 2. Remove inline code blocks (`code`)
-    cleanText = cleanText.replace(/`([^`]+)`/g, "$1");
-
-    // 3. Remove bold/italic markdown signs (***bolditalic***, **bold**, *italic*, __bold__, _italic_)
-    cleanText = cleanText.replace(/\*\*\*([^*]+)\*\*\*/g, "$1");
-    cleanText = cleanText.replace(/\*\*([^*]+)\*\*/g, "$1");
-    cleanText = cleanText.replace(/\*([^*]+)\*/g, "$1");
-    cleanText = cleanText.replace(/__([^_]+)__/g, "$1");
-    cleanText = cleanText.replace(/_([^_]+)_/g, "$1");
-
-    // 4. Remove headers (### Headers)
-    cleanText = cleanText.replace(/^#+\s+(.*)$/gm, "$1");
-
-    // 5. Remove bullet points or blockquote markers at start of lines (*, -, >, +)
-    cleanText = cleanText.replace(/^[\s]*[-*+>]\s+/gm, "");
-
-    // 6. Remove link formatting [text](url) -> keeps only the text part
-    cleanText = cleanText.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
-
-    // 7. Clean up multiple whitespaces, lines or gaps left behind
-    cleanText = cleanText.replace(/\s+/g, " ").trim();
-
-    return cleanText;
-}
-
-async function forwardToTTS(textResponse) {
-    const ttsEndpoint = "http://127.0.0.1:8000/generate-speech";
-    
-    // 🧼 Clean text from Markdown tags
-    const cleanSpeechText = stripMarkdownForSpeech(textResponse);
-    
-    // Safety check: if text becomes empty after stripping, skip it
-    if (!cleanSpeechText) {
-        log(`⚠️ TTS skipped: Response text contains no speakable prose.`, 'warning');
-        return;
-    }
-
-    log(`🗣️ Forwarding cleaned prose to Kokoro-TTS pipeline...`, 'info');
-    console.log(`[TTS Plaintext Target]: "${cleanSpeechText}"`);
-
-    try {
-        const response = await fetch(ttsEndpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ text: cleanSpeechText })
-        });
-
-        if (!response.ok) {
-            throw new Error(`TTS server responded with status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        log(`✅ TTS Audio Compiled: ${data.message || "Success"}`, 'success');
-
-    } catch (error) {
-        log(`🚨 TTS pipeline error: ${error.message}`, 'error');
-        console.error("TTS Forwarding Failed:", error);
-    }
 }
 
 // ==================== UI HELPERS ====================
