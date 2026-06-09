@@ -1,7 +1,7 @@
 import * as State from './functions/state.js';
 import { log, clearLogs } from './functions/logger.js';
 import * as API from './functions/api.js';
-import { validateResponse } from './functions/validator.js';
+import { validateResponse, redactContent } from './functions/validator.js';
 import * as UI from './functions/ui.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -54,20 +54,32 @@ async function sendMessage() {
     }
     
     const inputField = document.getElementById('user-input');
-    const prompt = inputField?.value.trim();
-    if (!prompt) return;
-    
+    const rawPrompt = inputField?.value.trim();
+    if (!rawPrompt) return;
+
     inputField.value = '';
-    UI.appendMessage(prompt, 'user');
+    UI.appendMessage(rawPrompt, 'user');
+
+    // ─── UPDATE 1: REMOVED '[Redacted]' ARGUMENT ───────────────────────────
+    // Let the filter automatically use the polite dictionary mapping substitutes
+    let prompt = redactContent(rawPrompt);
+    
     State.setPendingUserMessage(prompt);
     UI.showTypingIndicator();
     
     try {
         const response = await sendMessageWithRetry(prompt, null, 0);
         UI.hideTypingIndicator();
-        UI.appendMessage(response, 'assistant');
+
+        // ─── FILTER LLM OUTPUT PASSIVELY ───────────────────────────────────────
+        const validatedResponse = validateResponse(response);
         
-        UI.forwardToTTS(response);
+        // ─── UPDATE 2: REMOVED '[Redacted]' ARGUMENT HERE TOO ──────────────────
+        // Cleans up output strings using the dictionary mapping seamlessly
+        const safeResponse = redactContent(validatedResponse);
+
+        UI.appendMessage(safeResponse, 'assistant');
+        UI.forwardToTTS(safeResponse);
         
         let newHistory = [...State.conversationHistory];
         if (!State.systemMessageAdded && newHistory.length === 0) {
@@ -79,12 +91,12 @@ async function sendMessage() {
             log("Permanent system guardrails added to conversation", 'success');
         }
         
-        newHistory.push({ role: "user", content: prompt }, { role: "assistant", content: response });
+        // Save the clean, beautifully substituted version to history memory
+        newHistory.push({ role: "user", content: prompt }, { role: "assistant", content: safeResponse });
         State.setConversationHistory(newHistory);
         
         // OPTIMIZATION: Utilizing optimized history trimmer from api.js 
         API.trimConversationHistory();
-        
         localStorage.setItem('llmapiui_memory', JSON.stringify(State.conversationHistory));
         State.setPendingUserMessage(null);
         
