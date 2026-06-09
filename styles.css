@@ -1,7 +1,3 @@
-/* ============================================================ */
-/* LLMAPIUI - Clean & Friendly Design */
-/* ============================================================ */
-
 :root {
     /* Light/Dark friendly - defaults to dark but soft */
     --bg-page: #0f0f13;
@@ -653,4 +649,39 @@ body {
 .message.assistant hr {
     margin: 16px 0;
     border-color: var(--border);
+}
+
+/* ========== ICON THEMING & SPACING ========== */
+
+/* Base icon padding adjustments across the UI headers */
+.sidebar .section-title i,
+.sidebar .pool-title i,
+.logs-header i,
+.clear-logs i,
+.message-meta i {
+    margin-right: 6px;
+}
+
+/* Ensure font-awesome inline layout icons align smoothly with text */
+.log-entry i {
+    margin-right: 6px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* Color mappings synced to your existing CSS Variables */
+.log-icon-info { 
+    color: var(--accent); 
+}
+.log-icon-success { 
+    color: var(--success); 
+}
+.log-icon-warning { 
+    color: var(--warning); 
+}
+.log-icon-yellow { 
+    color: #eab308; /* Soft golden tint for the hourglass/cooldown marker */
+}
+.log-icon-error { 
+    color: var(--error); 
 }

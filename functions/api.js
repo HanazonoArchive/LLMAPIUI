@@ -21,14 +21,13 @@ export function loadCooldownState() {
         const cooldownState = JSON.parse(saved);
         const now = Date.now();
         
-        // FIX: Use Object.keys() because cooldownState is a key-value object map
         Object.keys(cooldownState).forEach(modelId => {
             const cooldownUntil = cooldownState[modelId];
             const model = State.models.find(m => m.id === modelId);
             if (model && cooldownUntil > now) {
                 model.status = 'yellow';
                 model.cooldownUntil = cooldownUntil;
-                log(`⏳ Restored cooldown for [${model.id}] (${Math.round((cooldownUntil - now) / 1000)}s remaining)`, 'yellow');
+                log(`Restored cooldown for [${model.id}] (${Math.round((cooldownUntil - now) / 1000)}s remaining)`, 'yellow');
             } else if (model && cooldownUntil <= now) {
                 if (!model.excluded) model.status = 'green';
                 model.cooldownUntil = null;
@@ -51,7 +50,7 @@ export function triggerCooldown(modelObj) {
     renderModelList();
     State.saveCooldownState();
     
-    log(`⏳ [${modelObj.id}] cooling down for ${State.COOLDOWN_TIME}s until ${new Date(cooldownUntil).toLocaleTimeString()}`, 'yellow');
+    log(`[${modelObj.id}] cooling down for ${State.COOLDOWN_TIME}s until ${new Date(cooldownUntil).toLocaleTimeString()}`, 'yellow');
     
     setTimeout(() => {
         if (modelObj.cooldownUntil && modelObj.cooldownUntil <= Date.now()) {
@@ -99,7 +98,7 @@ export function createMockModels() {
 
 export async function fetchModels() {
     if (!State.API_KEY || !State.BASE_URL) return;
-    log(`🔄 Syncing model cluster...`, 'info');
+    log(`Syncing model cluster...`, 'info');
     
     try {
         const controller = new AbortController();
@@ -181,7 +180,7 @@ export function handleTokenLimitExceeded(modelId, error) {
     if (model.tokenLimitHits >= 2) {
         autoExcludeModel(modelId, `Token limit exceeded ${model.tokenLimitHits} times`);
     } else {
-        log(`📉 Reducing token limit preference for [${model.id}]`, 'warning');
+        log(`<i class="fa-solid fa-chart-line-down" style="transform: scaleY(-1);"></i> Reducing token limit preference for [${model.id}]`, 'warning');
     }
     renderModelList();
 }
@@ -291,13 +290,12 @@ export function startHealthChecks() {
             model.cooldownUntil = null;
             renderModelList();
             State.saveCooldownState();
-            log(`🩺 Fixed stuck cooldown for [${model.id}]`, 'success');
+            log(`<i class="fa-solid fa-stethoscope"></i> Fixed stuck cooldown for [${model.id}]`, 'success');
         }
     }, 120000);
     State.setHealthCheckInterval(interval);
 }
 
-// Global scope attachment for standard inline onchange actions
 window.toggleModelInclusion = function(modelId, isIncluded) {
     const model = State.models.find(m => m.id === modelId);
     if (model) {

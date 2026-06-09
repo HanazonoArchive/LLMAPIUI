@@ -45,12 +45,12 @@ export function renderModelList() {
         let cooldownText = '';
         if (model.cooldownUntil && model.cooldownUntil > Date.now()) {
             const remaining = Math.round((model.cooldownUntil - Date.now()) / 1000);
-            cooldownText = `<span class="cooldown-timer">⏳${remaining}s</span>`;
+            cooldownText = `<span class="cooldown-timer"><i class="fa-solid fa-hourglass-half"></i> ${remaining}s</span>`;
         }
         
         let tokenWarning = '';
         if (model.tokenLimitHits > 0) {
-            tokenWarning = `<span class="token-warning" title="Hit token limit ${model.tokenLimitHits} times">⚠️📝</span>`;
+            tokenWarning = `<span class="token-warning" title="Hit token limit ${model.tokenLimitHits} times" style="color: var(--warning); margin-right: 4px;"><i class="fa-solid fa-triangle-exclamation"></i><i class="fa-solid fa-file-lines"></i></span>`;
         }
         
         div.innerHTML = `
@@ -120,7 +120,7 @@ export function appendMessage(text, sender, modelLabel = null) {
     if (modelLabel && sender === 'assistant') {
         const meta = document.createElement('span');
         meta.className = 'message-meta';
-        meta.innerText = `via ${modelLabel}`;
+        meta.innerHTML = `<i class="fa-solid fa-bolt"></i> via ${modelLabel}`;
         bubble.appendChild(meta);
     }
     
@@ -164,7 +164,7 @@ export async function forwardToTTS(textResponse) {
         return;
     }
 
-    log(`🗣️ Forwarding cleaned prose to Kokoro-TTS pipeline...`, 'info');
+    log(`<i class="fa-solid fa-volume-high"></i> Forwarding cleaned prose to Kokoro-TTS pipeline...`, 'info');
     console.log(`[TTS Plaintext Target]: "${cleanSpeechText}"`);
 
     try {
