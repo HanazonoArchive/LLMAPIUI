@@ -7,7 +7,10 @@ import { renderModelList } from './ui.js';
 const PRE_EXCLUDED_IDS = [
     'nemotron-3-ultra-free',
     '@cf/meta/llama-4-scout-17b-16e-instruct',
-    'auto'
+    'auto',
+    'nvidia/nemotron-nano-12b-v2-vl:free',
+    'qwen/qwen3-32b',
+    '@cf/openai/gpt-oss-120b'
 ];
 
 export function wait(ms) {
