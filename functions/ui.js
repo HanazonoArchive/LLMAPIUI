@@ -164,7 +164,7 @@ export async function forwardToTTS(textResponse) {
         return;
     }
 
-    log(`<i class="fa-solid fa-volume-high"></i> Forwarding cleaned prose to Kokoro-TTS pipeline...`, 'info');
+    log(`Forwarding cleaned prose to Kokoro-TTS pipeline...`, 'info');
     console.log(`[TTS Plaintext Target]: "${cleanSpeechText}"`);
 
     try {

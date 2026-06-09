@@ -88,7 +88,8 @@ export function createMockModels() {
             lastTested: null,
             failureCount: 0,
             tokenLimitHits: 0,
-            cooldownUntil: null
+            cooldownUntil: null,
+            usageCount: 0
         });
     }
     State.setModels(fallbackList);
@@ -127,12 +128,33 @@ export async function fetchModels() {
                     lastTested: State.modelLastTested.get(m.id) || null,
                     failureCount: 0,
                     tokenLimitHits: 0,
-                    cooldownUntil: null
+                    cooldownUntil: null,
+                    usageCount: 0
                 };
             });
             State.setModels(updatedModels);
             loadCooldownState();
             log(`Synced ${State.models.length} models. Active: ${State.models.filter(m => m.status === 'green' && !m.excluded).length}`, 'success');
+            
+            // ─── PERSISTENT SEQUENTIAL BASERUNNER QUEUE RULE ─────────────────
+            if (!State.hasCompletedInitialPings) {
+                State.setHasCompletedInitialPings(true); 
+                log("Starting sequential step-by-step latency baseline checks...", "info");
+                
+                (async () => {
+                    for (const model of updatedModels) {
+                        if (!model.excluded && model.status === 'green') {
+                            await testModelLatency(model.id);
+                        }
+                    }
+                    // Baseline is permanently completed. Store it in localStorage.
+                    localStorage.setItem('llmapiui_baseline_done', 'true');
+                    log("Baseline metric compilation complete. Token stored to LocalStorage.", "success");
+                })();
+            } else {
+                log("Persistent baseline historical data loaded. Skipping startup network pings.", "info");
+            }
+
         } else {
             throw new Error("No models returned");
         }
@@ -271,9 +293,42 @@ export async function callModel(model, prompt, maxTokens = 2000) {
     if (!data?.choices?.[0]?.message?.content) throw new Error("Invalid response structure");
     
     const modelObj = State.models.find(m => m.id === model.id);
-    if (modelObj) modelObj.failureCount = 0;
+    if (modelObj) {
+        modelObj.failureCount = 0;
+        modelObj.usageCount = (modelObj.usageCount || 0) + 1;
+    }
     
     return data.choices[0].message.content;
+}
+
+export async function testModelLatency(modelId) {
+    const model = State.models.find(m => m.id === modelId);
+    if (!model) return;
+
+    log(`Testing latency ping for [${model.id}]...`, 'info');
+    const startTime = performance.now();
+    
+    try {
+        await fetchWithRetry(`${State.BASE_URL}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${State.API_KEY}` },
+            body: JSON.stringify({
+                model: model.id,
+                messages: [{ role: "user", content: "ping" }],
+                max_tokens: 1
+            })
+        });
+
+        const latency = performance.now() - startTime;
+        recordLatency(model.id, latency);
+        
+        State.modelLastTested.set(model.id, Date.now());
+        State.saveLastTestedHistory();
+        
+        log(`Ping check successful [${model.id}]: ${Math.round(latency)}ms`, 'success');
+    } catch (error) {
+        log(`Ping check failed for [${model.id}]: ${error.message}`, 'error');
+    }
 }
 
 export function startHealthChecks() {
@@ -292,6 +347,14 @@ export function startHealthChecks() {
             State.saveCooldownState();
             log(`<i class="fa-solid fa-stethoscope"></i> Fixed stuck cooldown for [${model.id}]`, 'success');
         }
+
+        State.models.forEach(model => {
+            if (model.usageCount > 0) {
+                model.usageCount = Math.floor(model.usageCount / 2);
+            }
+        });
+        renderModelList();
+        
     }, 120000);
     State.setHealthCheckInterval(interval);
 }
@@ -309,3 +372,5 @@ window.toggleModelInclusion = function(modelId, isIncluded) {
         renderModelList();
     }
 };
+
+window.testModelLatency = testModelLatency;

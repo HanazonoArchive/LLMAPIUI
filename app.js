@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // OPTIMIZATION: Auto-fill interface configuration fields if DOM forms are present
     const fields = {
         'input-url': State.BASE_URL, 
         'input-key': State.API_KEY, 
@@ -60,8 +59,6 @@ async function sendMessage() {
     inputField.value = '';
     UI.appendMessage(rawPrompt, 'user');
 
-    // ─── UPDATE 1: REMOVED '[Redacted]' ARGUMENT ───────────────────────────
-    // Let the filter automatically use the polite dictionary mapping substitutes
     let prompt = redactContent(rawPrompt);
     
     State.setPendingUserMessage(prompt);
@@ -71,11 +68,7 @@ async function sendMessage() {
         const response = await sendMessageWithRetry(prompt, null, 0);
         UI.hideTypingIndicator();
 
-        // ─── FILTER LLM OUTPUT PASSIVELY ───────────────────────────────────────
         const validatedResponse = validateResponse(response);
-        
-        // ─── UPDATE 2: REMOVED '[Redacted]' ARGUMENT HERE TOO ──────────────────
-        // Cleans up output strings using the dictionary mapping seamlessly
         const safeResponse = redactContent(validatedResponse);
 
         UI.appendMessage(safeResponse, 'assistant');
@@ -91,11 +84,9 @@ async function sendMessage() {
             log("Permanent system guardrails added to conversation", 'success');
         }
         
-        // Save the clean, beautifully substituted version to history memory
         newHistory.push({ role: "user", content: prompt }, { role: "assistant", content: safeResponse });
         State.setConversationHistory(newHistory);
         
-        // OPTIMIZATION: Utilizing optimized history trimmer from api.js 
         API.trimConversationHistory();
         localStorage.setItem('llmapiui_memory', JSON.stringify(State.conversationHistory));
         State.setPendingUserMessage(null);
@@ -143,10 +134,16 @@ async function sendMessageWithRetry(prompt, previousPartialResponse = null, retr
             continue;
         }
         
+        // ─── IMPLEMENTED: ANTI-HOTSPOTTING SHUFFLE BY BALANCING PENALTY ────
         availableModels.sort((a, b) => {
             const latA = State.modelLatency.get(a.id) ?? Infinity;
             const latB = State.modelLatency.get(b.id) ?? Infinity;
-            return latA - latB;
+            
+            // Add a virtual 150ms penalty buffer for each time the model was picked
+            const virtualPenaltyA = (a.usageCount || 0) * 150;
+            const virtualPenaltyB = (b.usageCount || 0) * 150;
+            
+            return (latA + virtualPenaltyA) - (latB + virtualPenaltyB);
         });
         
         const model = availableModels[0];
@@ -270,7 +267,6 @@ function saveSettings() {
     API.fetchModels();
 }
 
-// Global scope window assignments for your layout sidebar templates
 window.sendMessage = sendMessage;
 window.saveSettings = saveSettings;
 window.clearLogs = clearLogs;

@@ -22,6 +22,7 @@ export const TOKEN_LIMIT_ERROR_CODES = [400, 413];
 // Status tracking flags
 export let systemMessageAdded = false;
 export let securityWarningShown = false;
+export let hasCompletedInitialPings = false;
 
 // ==================== STATE MUTATORS (CRITICAL FOR MODULES) ====================
 export function setAPIKey(val) { API_KEY = val; }
@@ -36,15 +37,20 @@ export function setSecurityWarningShown(val) { securityWarningShown = val; }
 export function setPendingUserMessage(val) { pendingUserMessage = val; }
 export function setHealthCheckInterval(val) { healthCheckInterval = val; }
 export function setConversationHistory(val) { conversationHistory = val; }
+export function setHasCompletedInitialPings(val) { hasCompletedInitialPings = val; }
 
 export function loadSettings() {
-    API_KEY = localStorage.getItem('llmapiui_api_key') || "";
+    API_KEY = localStorage.getItem('llmapiui_base_url_key') || localStorage.getItem('llmapiui_api_key') || "";
     BASE_URL = localStorage.getItem('llmapiui_base_url') || "";
     COOLDOWN_TIME = parseInt(localStorage.getItem('llmapiui_cooldown')) || 99;
     GUARDRAILS = localStorage.getItem('llmapiui_guardrails') || "Be helpful, accurate, and conversational. No disclaimers about being an AI. Use natural language. Your Name is Rei remember that. Keep it short, concise, put it under 70 words.";
     MAX_RETRIES = parseInt(localStorage.getItem('llmapiui_max_retries')) || 3;
     MAX_TOKENS_PER_MODEL = parseInt(localStorage.getItem('llmapiui_max_tokens')) || 2000;
     
+    // Check persistent storage to see if we have already compiled a baseline history
+    const baselineFlag = localStorage.getItem('llmapiui_baseline_done');
+    hasCompletedInitialPings = (baselineFlag === 'true');
+
     const savedHistory = localStorage.getItem('llmapiui_memory');
     if (savedHistory) {
         try {
