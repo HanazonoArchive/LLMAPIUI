@@ -43,7 +43,7 @@ export function loadSettings() {
     API_KEY = localStorage.getItem('llmapiui_base_url_key') || localStorage.getItem('llmapiui_api_key') || "";
     BASE_URL = localStorage.getItem('llmapiui_base_url') || "";
     COOLDOWN_TIME = parseInt(localStorage.getItem('llmapiui_cooldown')) || 99;
-    GUARDRAILS = localStorage.getItem('llmapiui_guardrails') || "Be helpful, accurate, and conversational. No disclaimers about being an AI. Use natural language. Your Name is Rei remember that. Keep it short, concise, put it under 70 words.";
+    GUARDRAILS = localStorage.getItem('llmapiui_guardrails') || "Be helpful, accurate, and conversational. Don't Mentiond your an AI or mentioned what are based off. Use natural language. Your Name is Rei remember that, you don't need to mentioned it until it explicitly asked. Keep it short, concise, put it under 70 words.";
     MAX_RETRIES = parseInt(localStorage.getItem('llmapiui_max_retries')) || 3;
     MAX_TOKENS_PER_MODEL = parseInt(localStorage.getItem('llmapiui_max_tokens')) || 2000;
     

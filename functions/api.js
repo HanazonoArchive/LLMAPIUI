@@ -2,6 +2,14 @@ import * as State from './state.js';
 import { log } from './logger.js';
 import { renderModelList } from './ui.js';
 
+// ─── DEFINE YOUR HARDCODED EXCLUSIONS HERE ───────────────────────────────────
+// You can add full exact model IDs, or generic keywords you want to auto-block.
+const PRE_EXCLUDED_IDS = [
+    'nemotron-3-ultra-free',
+    '@cf/meta/llama-4-scout-17b-16e-instruct',
+    'auto'
+];
+
 export function wait(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -80,10 +88,15 @@ export function createMockModels() {
     const fallbackList = [];
     for (let i = 0; i < 12; i++) {
         const mockId = `${mockPrefixes[i % mockPrefixes.length]}-${i+1}`;
+        
+        // Check if the mock ID matches user's local storage OR hardcoded blacklist keywords
+        const isPreExcluded = PRE_EXCLUDED_IDS.some(pattern => mockId.includes(pattern));
+        const shouldExclude = savedExclusions.has(mockId) || isPreExcluded;
+
         fallbackList.push({
             id: mockId,
-            status: savedExclusions.has(mockId) ? 'red' : 'green',
-            excluded: savedExclusions.has(mockId),
+            status: shouldExclude ? 'red' : 'green',
+            excluded: shouldExclude,
             lastLatency: null,
             lastTested: null,
             failureCount: 0,
@@ -119,11 +132,14 @@ export async function fetchModels() {
             const savedExclusions = new Set(JSON.parse(localStorage.getItem('llmapiui_excluded_models') || '[]'));
             
             const updatedModels = data.data.map(m => {
-                const isExcluded = savedExclusions.has(m.id);
+                // Determine if model matches localStorage toggles OR our hardcoded blacklist arrays
+                const isPreExcluded = PRE_EXCLUDED_IDS.some(pattern => m.id.includes(pattern));
+                const shouldExclude = savedExclusions.has(m.id) || isPreExcluded;
+                
                 return {
                     id: m.id,
-                    status: isExcluded ? 'red' : 'green',
-                    excluded: isExcluded,
+                    status: shouldExclude ? 'red' : 'green',
+                    excluded: shouldExclude,
                     lastLatency: State.modelLatency.get(m.id) || null,
                     lastTested: State.modelLastTested.get(m.id) || null,
                     failureCount: 0,
@@ -143,6 +159,7 @@ export async function fetchModels() {
                 
                 (async () => {
                     for (const model of updatedModels) {
+                        // Thanks to 'shouldExclude' logic above, pre-excluded models will be skipped entirely!
                         if (!model.excluded && model.status === 'green') {
                             await testModelLatency(model.id);
                         }
