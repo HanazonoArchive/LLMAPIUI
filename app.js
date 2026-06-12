@@ -5,6 +5,13 @@ import { validateResponse, redactContent } from './functions/validator.js';
 import * as UI from './functions/ui.js';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Bind functions to window so that index.html and dynamic elements can call them
+    window.log = log;
+    window.clearLogs = clearLogs;
+    window.appendMessage = UI.appendMessage;
+    window.showTypingIndicator = UI.showTypingIndicator;
+    window.hideTypingIndicator = UI.hideTypingIndicator;
+
     if (!State.securityWarningShown) {
         console.warn('API Key stored in localStorage - This is safe for personal use only. Do not deploy publicly.');
         State.setSecurityWarningShown(true);
@@ -13,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeSession = State.loadSettings();
     if (activeSession) {
         UI.renderSavedChat();
+        UI.renderMemoryClusters();
         if (State.conversationHistory.length > 0) {
             log(`Restored ${State.conversationHistory.filter(m => m.role !== 'system').length / 2} turns.`, 'success');
         }
@@ -302,6 +310,8 @@ function saveSettings() {
     const ttsEnabledInput = document.getElementById('input-tts-enabled');
     const ttsUrlInput = document.getElementById('input-tts-url');
     const memoryThresholdInput = document.getElementById('input-memory-threshold');
+    const tempInput = document.getElementById('input-temperature');
+    const topPInput = document.getElementById('input-top-p');
     
     const newUrl = urlInput?.value.trim() || "";
     const newKey = keyInput?.value.trim() || "";
@@ -314,6 +324,8 @@ function saveSettings() {
     const ttsEnabled = ttsEnabledInput ? ttsEnabledInput.checked : false;
     const ttsUrl = ttsUrlInput?.value.trim() || "http://127.0.0.1:8000/generate-speech";
     const memoryThreshold = memoryThresholdInput?.value.trim() || "12";
+    const temperature = tempInput?.value || "0.7";
+    const topP = topPInput?.value || "0.9";
     
     if (!newUrl || !newKey) {
         alert("Please fill in both Base URL and API Key.");
@@ -338,6 +350,8 @@ function saveSettings() {
     localStorage.setItem('llmapiui_tts_enabled', ttsEnabled.toString());
     localStorage.setItem('llmapiui_tts_url', ttsUrl);
     localStorage.setItem('llmapiui_memory_threshold', memoryThreshold);
+    localStorage.setItem('llmapiui_temperature', temperature);
+    localStorage.setItem('llmapiui_top_p', topP);
     
     log("Settings saved.", "success");
     State.loadSettings();

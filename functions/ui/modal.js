@@ -17,7 +17,9 @@ export function openSettingsModal() {
         'input-max-tokens': State.MAX_TOKENS_PER_MODEL,
         'input-tts-enabled': State.TTS_ENABLED,
         'input-tts-url': State.TTS_ENDPOINT,
-        'input-memory-threshold': State.MEMORY_THRESHOLD_TURNS
+        'input-memory-threshold': State.MEMORY_THRESHOLD_TURNS,
+        'input-temperature': State.TEMPERATURE,
+        'input-top-p': State.TOP_P
     };
     
     Object.keys(fields).forEach(id => {
@@ -29,6 +31,12 @@ export function openSettingsModal() {
             el.value = fields[id];
         }
     });
+    
+    // Update range input visual display elements
+    const displayTemp = document.getElementById('display-temperature');
+    if (displayTemp) displayTemp.innerText = State.TEMPERATURE;
+    const displayTopP = document.getElementById('display-top-p');
+    if (displayTopP) displayTopP.innerText = State.TOP_P;
     
     // Reset tabs: active connection tab
     switchSettingsTab('tab-connection', document.querySelector('.modal-tab-btn'));
@@ -58,6 +66,11 @@ export function clearMemoryArchiveUI() {
     if (confirm("Are you sure you want to clear all semantic memory context tags?")) {
         State.clearArchiveContext();
         log("Semantic memory archive tags cleared.", "success");
+        
+        import('./memoryViewer.js').then(m => {
+            m.renderMemoryClusters();
+        });
+        
         alert("Memory archive tags successfully cleared.");
     }
 }

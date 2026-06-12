@@ -21,22 +21,43 @@ export function trimConversationHistory() {
     // Extract new tags
     const newTags = MemoryMath.archiveHistorySlice(sliceToArchive, 4);
     
-    // Merge tags, filter duplicates, keep up to 8 tags
-    let mergedTags = [...State.archiveContextClusters];
-    newTags.forEach(tag => {
-        if (!mergedTags.includes(tag)) {
-            mergedTags.push(tag);
+    // Merge tags with temporal decay
+    const clusterMap = new Map();
+    
+    // Decay existing tags
+    State.archiveContextClusters.forEach(c => {
+        if (typeof c === 'string') {
+            clusterMap.set(c, 0.75);
+        } else if (c && c.tag) {
+            clusterMap.set(c.tag, c.weight * 0.75);
         }
     });
     
-    if (mergedTags.length > 8) {
-        mergedTags = mergedTags.slice(-8);
-    }
+    // Add new tags with weight 1.0 (reinforcing if already exists)
+    newTags.forEach(tag => {
+        const currentWeight = clusterMap.get(tag) || 0;
+        clusterMap.set(tag, Math.min(1.0, currentWeight + 1.0));
+    });
+    
+    // Filter out very weak tags, sort by weight descending, and keep up to 8
+    let mergedTags = Array.from(clusterMap.entries())
+        .map(([tag, weight]) => ({ tag, weight }))
+        .filter(c => c.weight >= 0.15)
+        .sort((a, b) => b.weight - a.weight)
+        .slice(0, 8);
     
     State.setArchiveContextClusters(mergedTags);
     State.saveArchiveContext();
     
-    log(`[Memory Engine] Memory digested. Added: ${newTags.join(', ') || 'none'}. Archive context: ${mergedTags.join(', ')}`, 'success');
+    const tagDisplayList = mergedTags.map(c => `${c.tag} (${c.weight.toFixed(2)})`);
+    log(`[Memory Engine] Memory digested. Added: ${newTags.join(', ') || 'none'}. Archive context: ${tagDisplayList.join(', ')}`, 'success');
+    
+    // Dynamic import to avoid circular dependency locks and update the UI
+    import('../ui.js').then(m => {
+        if (m.renderMemoryClusters) {
+            m.renderMemoryClusters();
+        }
+    });
     
     // Save updated history
     const newHistory = systemMessage ? [systemMessage, ...remainingHistory] : remainingHistory;

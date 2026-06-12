@@ -42,6 +42,13 @@
         <div class="model-list" id="model-list">
           <div class="empty-state">Loading models...</div>
         </div>
+
+        <div class="memory-header">
+          <span class="memory-title"><i class="fa-solid fa-brain"></i> Memory Archive</span>
+        </div>
+        <div class="memory-list" id="memory-list-container">
+          <div class="empty-state">No semantic memory tags active.</div>
+        </div>
       </div>
 
       <div class="main-content">
@@ -161,6 +168,20 @@
 
           <!-- Personality Panel -->
           <div id="tab-personality" class="modal-tab-panel">
+            <div class="form-group-slider">
+              <div class="slider-header">
+                <label for="input-temperature">Temperature</label>
+                <span id="display-temperature" class="slider-value">0.7</span>
+              </div>
+              <input type="range" id="input-temperature" min="0.0" max="2.0" step="0.1" value="0.7" oninput="document.getElementById('display-temperature').innerText = this.value" />
+            </div>
+            <div class="form-group-slider">
+              <div class="slider-header">
+                <label for="input-top-p">Top-P</label>
+                <span id="display-top-p" class="slider-value">0.9</span>
+              </div>
+              <input type="range" id="input-top-p" min="0.0" max="1.0" step="0.05" value="0.9" oninput="document.getElementById('display-top-p').innerText = this.value" />
+            </div>
             <div class="form-group">
               <label>System Guardrails (Persistent Prompts)</label>
               <textarea id="input-guardrails" rows="6" placeholder="Instructions for all models..."></textarea>
@@ -190,92 +211,5 @@
 
     <script type="module" src="app.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
-
-    <script>
-      if (typeof window.log === "undefined") {
-        window.log = function (message, type = "info") {
-          const logsContainer = document.getElementById("logs");
-          if (!logsContainer) return;
-
-          const entry = document.createElement("div");
-          entry.className = "log-entry";
-          const time = new Date().toLocaleTimeString();
-
-          let iconClass = 'fa-solid fa-circle-info';
-          switch (type) {
-            case 'error': iconClass = 'fa-solid fa-circle-xmark'; break;
-            case 'success': iconClass = 'fa-solid fa-circle-check'; break;
-            case 'warning': iconClass = 'fa-solid fa-triangle-exclamation'; break;
-            case 'yellow': iconClass = 'fa-solid fa-hourglass-half'; break;
-          }
-
-          const iconHtml = `<i class="${iconClass} log-icon-${type}"></i>`;
-          entry.innerHTML = `<span style="color:#6e6e8a">[${time}]</span> ${iconHtml} ${message}`;
-          logsContainer.appendChild(entry);
-          logsContainer.scrollTop = logsContainer.scrollHeight;
-          console.log(`[${type}] ${message}`);
-        };
-      }
-
-      window.clearLogs =
-        window.clearLogs ||
-        function () {
-          const logsContainer = document.getElementById("logs");
-          if (logsContainer) {
-            logsContainer.innerHTML =
-              '<div class="log-entry"><i class="fa-solid fa-trash-can"></i> Logs cleared.</div>';
-          }
-        };
-
-      if (typeof window.showTypingIndicator === "undefined") {
-        let typingElement = null;
-
-        window.showTypingIndicator = function () {
-          const container = document.getElementById("chat-container");
-          if (!container) return;
-          if (window.hideTypingIndicator) window.hideTypingIndicator();
-
-          typingElement = document.createElement("div");
-          typingElement.className = "typing-indicator";
-          typingElement.innerHTML =
-            '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
-          container.appendChild(typingElement);
-          container.scrollTop = container.scrollHeight;
-        };
-
-        window.hideTypingIndicator = function () {
-          if (typingElement && typingElement.remove) {
-            typingElement.remove();
-            typingElement = null;
-          }
-        };
-      }
-
-      if (typeof window.appendMessage === "undefined") {
-        window.appendMessage = function (text, sender, modelLabel = null) {
-          const container = document.getElementById("chat-container");
-          if (!container) return;
-
-          const welcome = container.querySelector(".welcome-message");
-          if (welcome && (sender === "user" || sender === "assistant")) {
-            welcome.remove();
-          }
-
-          const bubble = document.createElement("div");
-          bubble.className = `message ${sender}`;
-          bubble.innerText = text;
-
-          if (modelLabel && sender === "assistant") {
-            const meta = document.createElement("span");
-            meta.className = "message-meta";
-            meta.innerHTML = `<i class="fa-solid fa-bolt"></i> via ${modelLabel}`;
-            bubble.appendChild(meta);
-          }
-
-          container.appendChild(bubble);
-          container.scrollTop = container.scrollHeight;
-        };
-      }
-    </script>
   </body>
 </html>

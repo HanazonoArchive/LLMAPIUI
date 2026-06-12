@@ -6,7 +6,8 @@ export async function callModel(model, prompt, maxTokens = 2000) {
     
     let systemContent = `SYSTEM RULES (PERMANENT):\n${State.GUARDRAILS}\n\nThese rules apply to ALL responses in this conversation. You must follow them strictly.`;
     if (State.archiveContextClusters && State.archiveContextClusters.length > 0) {
-        systemContent += `\n\n[CONTEXT CLUSTERS (HISTORICAL INTERACTION THEMES): ${State.archiveContextClusters.join(' • ')}]`;
+        const clusterStrings = State.archiveContextClusters.map(c => typeof c === 'string' ? c : c.tag);
+        systemContent += `\n\n[CONTEXT CLUSTERS (HISTORICAL INTERACTION THEMES): ${clusterStrings.join(' • ')}]`;
     }
     
     const messagesPayload = [
@@ -18,7 +19,13 @@ export async function callModel(model, prompt, maxTokens = 2000) {
     const data = await fetchWithRetry(`${State.BASE_URL}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${State.API_KEY}` },
-        body: JSON.stringify({ model: model.id, messages: messagesPayload, temperature: 0.7, max_tokens: maxTokens })
+        body: JSON.stringify({ 
+            model: model.id, 
+            messages: messagesPayload, 
+            temperature: State.TEMPERATURE, 
+            top_p: State.TOP_P, 
+            max_tokens: maxTokens 
+        })
     });
     
     if (!data?.choices?.[0]?.message?.content) throw new Error("Invalid response structure");
@@ -37,7 +44,8 @@ export async function* callModelStream(model, prompt, maxTokens = 2000) {
     
     let systemContent = `SYSTEM RULES (PERMANENT):\n${State.GUARDRAILS}\n\nThese rules apply to ALL responses in this conversation. You must follow them strictly.`;
     if (State.archiveContextClusters && State.archiveContextClusters.length > 0) {
-        systemContent += `\n\n[CONTEXT CLUSTERS (HISTORICAL INTERACTION THEMES): ${State.archiveContextClusters.join(' • ')}]`;
+        const clusterStrings = State.archiveContextClusters.map(c => typeof c === 'string' ? c : c.tag);
+        systemContent += `\n\n[CONTEXT CLUSTERS (HISTORICAL INTERACTION THEMES): ${clusterStrings.join(' • ')}]`;
     }
     
     const messagesPayload = [
@@ -55,7 +63,8 @@ export async function* callModelStream(model, prompt, maxTokens = 2000) {
         body: JSON.stringify({ 
             model: model.id, 
             messages: messagesPayload, 
-            temperature: 0.7, 
+            temperature: State.TEMPERATURE, 
+            top_p: State.TOP_P, 
             max_tokens: maxTokens,
             stream: true
         })

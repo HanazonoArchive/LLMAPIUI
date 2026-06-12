@@ -13,6 +13,8 @@ export let TTS_ENDPOINT = "http://127.0.0.1:8000/generate-speech";
 export let EXCLUDE_KEYWORDS = "";
 export let archiveContextClusters = [];
 export let MEMORY_THRESHOLD_TURNS = 12;
+export let TEMPERATURE = 0.7;
+export let TOP_P = 0.9;
 
 // Core data structures
 export let conversationHistory = [];
@@ -50,8 +52,20 @@ export function setRememberKey(val) { REMEMBER_KEY = val === true || val === 'tr
 export function setTTSEnabled(val) { TTS_ENABLED = val === true || val === 'true'; }
 export function setTTSEndpoint(val) { TTS_ENDPOINT = val; }
 export function setExcludeKeywords(val) { EXCLUDE_KEYWORDS = val; }
-export function setArchiveContextClusters(val) { archiveContextClusters = Array.isArray(val) ? val : []; }
+export function setArchiveContextClusters(val) { 
+    archiveContextClusters = Array.isArray(val) ? val.map(c => {
+        if (typeof c === 'string') return { tag: c, weight: 1.0 };
+        if (c && typeof c === 'object' && c.tag) return { tag: c.tag, weight: typeof c.weight === 'number' ? c.weight : 1.0 };
+        return null;
+    }).filter(Boolean) : []; 
+}
+export function removeArchiveContextTag(tag) {
+    archiveContextClusters = archiveContextClusters.filter(c => (typeof c === 'string' ? c : c.tag) !== tag);
+    saveArchiveContext();
+}
 export function setMemoryThresholdTurns(val) { MEMORY_THRESHOLD_TURNS = parseInt(val) || 12; }
+export function setTemperature(val) { TEMPERATURE = !isNaN(parseFloat(val)) ? parseFloat(val) : 0.7; }
+export function setTopP(val) { TOP_P = !isNaN(parseFloat(val)) ? parseFloat(val) : 0.9; }
 
 export function loadSettings() {
     REMEMBER_KEY = localStorage.getItem('llmapiui_remember_key') !== 'false';
@@ -68,8 +82,20 @@ export function loadSettings() {
     
     const savedContext = localStorage.getItem('llmapiui_archive_context');
     if (savedContext) {
-        try { archiveContextClusters = JSON.parse(savedContext); } catch (e) {}
+        try { 
+            const parsed = JSON.parse(savedContext);
+            archiveContextClusters = parsed.map(c => {
+                if (typeof c === 'string') return { tag: c, weight: 1.0 };
+                if (c && typeof c === 'object' && c.tag) return { tag: c.tag, weight: typeof c.weight === 'number' ? c.weight : 1.0 };
+                return null;
+            }).filter(Boolean);
+        } catch (e) {}
     }
+    
+    TEMPERATURE = parseFloat(localStorage.getItem('llmapiui_temperature'));
+    if (isNaN(TEMPERATURE)) TEMPERATURE = 0.7;
+    TOP_P = parseFloat(localStorage.getItem('llmapiui_top_p'));
+    if (isNaN(TOP_P)) TOP_P = 0.9;
     
     // Check persistent storage to see if we have already compiled a baseline history
     const baselineFlag = localStorage.getItem('llmapiui_baseline_done');
