@@ -10,6 +10,7 @@ export let ENABLE_HEALTH_CHECKS = true;
 export let REMEMBER_KEY = true;
 export let TTS_ENABLED = false;
 export let TTS_ENDPOINT = "http://127.0.0.1:8000/generate-speech";
+export let AGENT_MODE = false;
 export let EXCLUDE_KEYWORDS = "";
 export let archiveContextClusters = [];
 export let MEMORY_THRESHOLD_TURNS = 12;
@@ -48,11 +49,19 @@ export function setSystemMessageAdded(val) { systemMessageAdded = val; }
 export function setSecurityWarningShown(val) { securityWarningShown = val; }
 export function setPendingUserMessage(val) { pendingUserMessage = val; }
 export function setHealthCheckInterval(val) { healthCheckInterval = val; }
-export function setConversationHistory(val) { conversationHistory = val; }
+export function setConversationHistory(val) { 
+    conversationHistory = val; 
+    const active = sessions.find(s => s.id === currentSessionId);
+    if (active) {
+        active.history = val;
+        saveSessions();
+    }
+}
 export function setHasCompletedInitialPings(val) { hasCompletedInitialPings = val; }
 export function setRememberKey(val) { REMEMBER_KEY = val === true || val === 'true'; }
 export function setTTSEnabled(val) { TTS_ENABLED = val === true || val === 'true'; }
 export function setTTSEndpoint(val) { TTS_ENDPOINT = val; }
+export function setAgentMode(val) { AGENT_MODE = val === true || val === 'true'; }
 export function setExcludeKeywords(val) { EXCLUDE_KEYWORDS = val; }
 export function setArchiveContextClusters(val) { 
     archiveContextClusters = Array.isArray(val) ? val.map(c => {
@@ -97,6 +106,8 @@ Rules:
     MAX_TOKENS_PER_MODEL = parseInt(localStorage.getItem('llmapiui_max_tokens')) || 2000;
     TTS_ENABLED = localStorage.getItem('llmapiui_tts_enabled') === 'true';
     TTS_ENDPOINT = localStorage.getItem('llmapiui_tts_url') || "http://127.0.0.1:8000/generate-speech";
+    AGENT_MODE = localStorage.getItem('llmapiui_agent_mode') === 'true';
+    
     EXCLUDE_KEYWORDS = localStorage.getItem('llmapiui_exclude_keywords') || "";
     MEMORY_THRESHOLD_TURNS = parseInt(localStorage.getItem('llmapiui_memory_threshold')) || 12;
     

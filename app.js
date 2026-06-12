@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.renameActiveSession = renameActiveSession;
     window.deleteActiveSession = deleteActiveSession;
     window.toggleSessionDropdown = toggleSessionDropdown;
+    window.toggleAgentMode = toggleAgentMode;
 
     if (!State.securityWarningShown) {
         console.warn('API Key stored in localStorage - This is safe for personal use only. Do not deploy publicly.');
@@ -137,34 +138,124 @@ async function sendMessage() {
     };
     
     try {
-        const result = await sendMessageWithRetry(prompt, null, 0, onChunk);
+        let currentPrompt = prompt;
+        let finalResponseText = "";
+        let finalModelId = "";
+        let isFirstIteration = true;
+        
+        for (let i = 0; i < 5; i++) {
+            const result = await sendMessageWithRetry(currentPrompt, null, 0, onChunk);
+            const responseText = result.text;
+            
+            // Check for tool call (either wrapped in XML tags or just raw JSON)
+            let toolMatch = responseText.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
+            let toolJsonRaw = null;
+            
+            if (toolMatch) {
+                toolJsonRaw = toolMatch[1].trim();
+            } else {
+                // Fallback: try to find a raw JSON object that looks like a tool call
+                const fallbackMatch = responseText.match(/{\s*"name"\s*:\s*"[^"]+"\s*,\s*"args"\s*:\s*{[\s\S]*?}\s*}/);
+                if (fallbackMatch) {
+                    toolJsonRaw = fallbackMatch[0].trim();
+                }
+            }
+            
+            if (toolJsonRaw) {
+                // Tool Call Detected
+                let toolName, toolArgs;
+                let parseSuccess = false;
+                let toolResultString = "";
+                
+                try {
+                    const parsed = JSON.parse(toolJsonRaw);
+                    toolName = parsed.name;
+                    toolArgs = parsed.args;
+                    parseSuccess = true;
+                } catch (e) {
+                    toolResultString = `[Error] Failed to parse JSON: ${e.message}`;
+                }
+                
+                if (parseSuccess) {
+                    // Update UI to show tool usage (subtle)
+                    const toolIndicator = document.createElement('div');
+                    toolIndicator.className = 'tool-indicator';
+                    toolIndicator.innerHTML = `<i class="fa-solid fa-gear fa-spin text-muted"></i> <span>Using tool: <b>${toolName}</b>...</span>`;
+                    document.getElementById('chat-container').appendChild(toolIndicator);
+                    document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
+                    
+                    try {
+                        const res = await fetch('http://localhost:3000/api/tools/execute', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: toolName, args: toolArgs })
+                        });
+                        const data = await res.json();
+                        toolResultString = data.success ? data.result : `[Error] ${data.error}`;
+                        toolIndicator.innerHTML = `<i class="fa-solid fa-check text-success"></i> <span>Tool used: <b>${toolName}</b></span>`;
+                    } catch (err) {
+                        toolResultString = `[Error] Network failed: ${err.message}`;
+                        toolIndicator.innerHTML = `<i class="fa-solid fa-xmark text-danger"></i> <span>Tool failed: <b>${toolName}</b></span>`;
+                    }
+                    
+                    // Clean the JSON out of the chat bubble so the user doesn't see the ugly raw tool call
+                    if (assistantBubble) {
+                        let cleanedText = responseText;
+                        if (toolMatch) {
+                            cleanedText = cleanedText.replace(toolMatch[0], '');
+                        } else {
+                            cleanedText = cleanedText.replace(toolJsonRaw, '');
+                        }
+                        cleanedText = cleanedText.trim();
+                        
+                        if (cleanedText === '') {
+                            assistantBubble.style.display = 'none';
+                        } else {
+                            assistantBubble.innerHTML = typeof marked !== "undefined" ? DOMPurify.sanitize(marked.parse(cleanedText)) : cleanedText;
+                        }
+                    }
+                }
+                
+                // Save this turn to history
+                let currentHistory = [...State.conversationHistory];
+                currentHistory.push({ role: "user", content: isFirstIteration ? prompt : currentPrompt });
+                currentHistory.push({ role: "assistant", content: responseText });
+                State.setConversationHistory(currentHistory);
+                
+                // Prepare next prompt
+                currentPrompt = `[TOOL RESULT for ${toolName || 'tool'}]:\n${toolResultString}\n\nCRITICAL INSTRUCTION: You MUST explicitly state the factual data from the tool result above in your response. You can maintain your assigned persona, but you cannot hide the actual answer.`;
+                assistantBubble = null; // reset for next chunk
+                isFirstIteration = false;
+                
+            } else {
+                // Final response
+                finalResponseText = responseText;
+                finalModelId = result.modelId;
+                
+                // Save this turn to history
+                let currentHistory = [...State.conversationHistory];
+                currentHistory.push({ role: "user", content: isFirstIteration ? prompt : currentPrompt });
+                currentHistory.push({ role: "assistant", content: finalResponseText });
+                State.setConversationHistory(currentHistory);
+                
+                break; // exit loop
+            }
+        }
+        
         UI.hideTypingIndicator();
-
-        const validatedResponse = validateResponse(result.text);
+        
+        const validatedResponse = validateResponse(finalResponseText);
         const safeResponse = redactContent(validatedResponse);
         
         // Add the model metadata label to the completed assistant bubble
-        if (assistantBubble && result.modelId) {
+        if (assistantBubble && finalModelId) {
             const meta = document.createElement('span');
             meta.className = 'message-meta';
-            meta.innerHTML = `<i class="fa-solid fa-bolt"></i> via ${result.modelId}`;
+            meta.innerHTML = `<i class="fa-solid fa-bolt"></i> via ${finalModelId}`;
             assistantBubble.appendChild(meta);
         }
 
         UI.forwardToTTS(safeResponse);
-        
-        let newHistory = [...State.conversationHistory];
-        if (!State.systemMessageAdded && newHistory.length === 0) {
-            newHistory.unshift({
-                role: "system",
-                content: `SYSTEM RULES (PERMANENT):\n${State.GUARDRAILS}\n\nThese rules apply to ALL responses in this conversation. You must follow them strictly.`
-            });
-            State.setSystemMessageAdded(true);
-            log("Permanent system guardrails added to conversation", 'success');
-        }
-        
-        newHistory.push({ role: "user", content: prompt }, { role: "assistant", content: safeResponse });
-        State.setConversationHistory(newHistory);
         
         API.trimConversationHistory();
         localStorage.setItem('llmapiui_memory', JSON.stringify(State.conversationHistory));
@@ -205,7 +296,6 @@ async function sendMessageWithRetry(prompt, previousPartialResponse = null, retr
     
     const failedModels = new Set();
     let lastError = null;
-    
     for (let attempt = 0; attempt < State.MAX_RETRIES; attempt++) {
         const availableModels = State.models.filter(m => 
             !m.excluded && m.status !== 'red' && API.isModelAvailable(m) && !failedModels.has(m.id)
@@ -352,6 +442,18 @@ function saveSettings() {
     const tempInput = document.getElementById('input-temperature');
     const topPInput = document.getElementById('input-top-p');
     
+    // Initialize Agent Mode button state
+    const agentModeBtn = document.getElementById('agent-mode-btn');
+    if (agentModeBtn) {
+        if (State.AGENT_MODE) {
+            agentModeBtn.classList.add('active');
+            agentModeBtn.innerHTML = `<i class="fa-solid fa-robot"></i> Agent Mode: ON`;
+        } else {
+            agentModeBtn.classList.remove('active');
+            agentModeBtn.innerHTML = `<i class="fa-solid fa-robot"></i> Agent Mode: OFF`;
+        }
+    }
+    
     const newUrl = urlInput?.value.trim() || "";
     const newKey = keyInput?.value.trim() || "";
     const rememberKey = rememberKeyInput ? rememberKeyInput.checked : true;
@@ -492,3 +594,23 @@ window.createNewSession = createNewSession;
 window.renameActiveSession = renameActiveSession;
 window.deleteActiveSession = deleteActiveSession;
 window.toggleSessionDropdown = toggleSessionDropdown;
+
+// ==================== AGENT MODE ====================
+function toggleAgentMode() {
+    const newState = !State.AGENT_MODE;
+    State.setAgentMode(newState);
+    localStorage.setItem('llmapiui_agent_mode', newState.toString());
+    
+    const btn = document.getElementById('agent-mode-btn');
+    if (btn) {
+        if (newState) {
+            btn.classList.add('active');
+            btn.innerHTML = `<i class="fa-solid fa-robot"></i> Agent Mode: ON`;
+            log("Agent Mode enabled. Tools will be available.", "info");
+        } else {
+            btn.classList.remove('active');
+            btn.innerHTML = `<i class="fa-solid fa-robot"></i> Agent Mode: OFF`;
+            log("Agent Mode disabled. Tools are hidden.", "info");
+        }
+    }
+}

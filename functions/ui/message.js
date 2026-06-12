@@ -71,14 +71,38 @@ export function renderSavedChat() {
         if (welcome) welcome.remove();
     }
     
-    const displayMessages = State.conversationHistory.filter(msg => msg.role !== 'system');
+    const displayMessages = State.conversationHistory.filter(msg => {
+        if (msg.role === 'system') return false;
+        // Don't render internal tool result prompts
+        if (msg.role === 'user' && msg.content.includes('[TOOL RESULT for')) return false;
+        return true;
+    });
     
     displayMessages.forEach(msg => {
+        let displayContent = msg.content;
+        
+        // Strip out raw JSON tool calls from assistant messages
+        if (msg.role === 'assistant') {
+            const toolMatch = displayContent.match(/<tool_call>([\s\S]*?)<\/tool_call>/);
+            if (toolMatch) {
+                displayContent = displayContent.replace(toolMatch[0], '');
+            } else {
+                const fallbackMatch = displayContent.match(/{\s*"name"\s*:\s*"[^"]+"\s*,\s*"args"\s*:\s*{[\s\S]*?}\s*}/);
+                if (fallbackMatch) {
+                    displayContent = displayContent.replace(fallbackMatch[0], '');
+                }
+            }
+            displayContent = displayContent.trim();
+        }
+        
+        // If a message was purely a hidden tool call, skip rendering it
+        if (displayContent === '') return;
+        
         const bubble = document.createElement('div');
         bubble.className = `message ${msg.role === 'user' ? 'user' : 'assistant'}`;
         
         if (msg.role === 'assistant' && typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
-            const rawHtml = marked.parse(msg.content, { breaks: true, gfm: true });
+            const rawHtml = marked.parse(displayContent, { breaks: true, gfm: true });
             bubble.innerHTML = DOMPurify.sanitize(rawHtml);
             bubble.querySelectorAll('pre code').forEach(el => {
                 if (typeof hljs !== 'undefined') {
@@ -86,7 +110,7 @@ export function renderSavedChat() {
                 }
             });
         } else {
-            bubble.innerText = msg.content;
+            bubble.innerText = displayContent;
         }
         
         container.appendChild(bubble);

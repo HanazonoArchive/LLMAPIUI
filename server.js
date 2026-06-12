@@ -224,6 +224,53 @@ app.post('/api/memory/clear', (req, res) => {
     }
 });
 
+// ==========================================
+// TOOL EXECUTION REGISTRY (Agentic Support)
+// ==========================================
+app.post('/api/tools/execute', async (req, res) => {
+    try {
+        const { name, args } = req.body;
+        if (!name) return res.status(400).json({ error: 'Missing tool name' });
+        
+        console.log(`[Tools] Executing tool: ${name}`, args);
+        let result = null;
+
+        switch (name) {
+            case 'get_time':
+                result = new Date().toISOString();
+                break;
+
+            case 'fetch_url':
+                if (!args || !args.url) {
+                    throw new Error("Missing 'url' argument");
+                }
+                const urlObj = new URL(args.url);
+                if (urlObj.protocol !== 'http:' && urlObj.protocol !== 'https:') {
+                    throw new Error("Only http and https protocols are allowed");
+                }
+                const response = await fetch(args.url, {
+                    headers: { 'User-Agent': 'LLMAPIUI-Agent/1.0' },
+                    timeout: 5000
+                });
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const text = await response.text();
+                // Truncate to avoid massive payloads blowing up the prompt context
+                result = text.substring(0, 3000) + (text.length > 3000 ? '\n...[Content Truncated]' : '');
+                break;
+
+            default:
+                throw new Error(`Unknown tool: ${name}`);
+        }
+
+        console.log(`[Tools] Tool ${name} finished. Returning result.`);
+        res.json({ success: true, result: String(result) });
+        
+    } catch (error) {
+        console.error(`[Tools] Execution error for ${req.body?.name}:`, error.message);
+        res.json({ success: false, error: error.message });
+    }
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`\n==================================================`);

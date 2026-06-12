@@ -119,6 +119,11 @@
 
         <!-- Input -->
         <div class="input-area">
+          <div class="input-toolbar" style="margin-bottom: 8px; display: flex; gap: 10px;">
+            <button class="agent-mode-btn" id="agent-mode-btn" onclick="toggleAgentMode()" title="Enable autonomous tools (Uses more tokens)">
+              <i class="fa-solid fa-robot"></i> Agent Mode: OFF
+            </button>
+          </div>
           <div class="input-wrapper">
             <textarea
               class="user-input"

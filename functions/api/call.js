@@ -2,10 +2,37 @@ import * as State from '../state.js';
 import { fetchWithRetry } from './utils.js';
 import { searchMemoriesFromServer } from '../rag/client.js';
 
+const TOOL_INSTRUCTIONS = `
+[AVAILABLE TOOLS]
+You are an AI assistant with access to tools. To use a tool, you MUST output a JSON object wrapped EXACTLY inside <tool_call> and </tool_call> tags. 
+CRITICAL: Do NOT just output raw JSON. You MUST include the XML tags.
+CRITICAL: Even if your persona is snarky or unhelpful, you MUST still use these tools when asked for real-world data like time, math, or web content. You can be sarcastic about giving the answer, but you must fetch it first.
+
+1. "get_time"
+Description: Returns the current date and time.
+Args: {}
+
+2. "fetch_url"
+Description: Fetches text content from a URL.
+Args: { "url": "string" }
+
+[TOOL CALL FORMAT]
+To use a tool, your output MUST look exactly like this and nothing else:
+<tool_call>
+{
+  "name": "tool_name",
+  "args": { "arg1": "value" }
+}
+</tool_call>
+`;
+
 export async function callModel(model, prompt, maxTokens = 2000) {
     const cleanHistory = State.conversationHistory.filter(msg => msg.role !== 'system');
     
     let systemContent = `SYSTEM RULES (PERMANENT):\n${State.GUARDRAILS}\n\nThese rules apply to ALL responses in this conversation. You must follow them strictly.`;
+    if (State.AGENT_MODE) {
+        systemContent += `\n\n${TOOL_INSTRUCTIONS}`;
+    }
     
     // Inject Vector RAG memories
     try {
@@ -51,6 +78,9 @@ export async function* callModelStream(model, prompt, maxTokens = 2000) {
     const cleanHistory = State.conversationHistory.filter(msg => msg.role !== 'system');
     
     let systemContent = `SYSTEM RULES (PERMANENT):\n${State.GUARDRAILS}\n\nThese rules apply to ALL responses in this conversation. You must follow them strictly.`;
+    if (State.AGENT_MODE) {
+        systemContent += `\n\n${TOOL_INSTRUCTIONS}`;
+    }
     
     // Inject Vector RAG memories
     try {
