@@ -6,6 +6,14 @@ export let GUARDRAILS = "";
 export let MAX_RETRIES = 3;
 export let ENABLE_HEALTH_CHECKS = true;
 
+// New modular configuration variables
+export let REMEMBER_KEY = true;
+export let TTS_ENABLED = false;
+export let TTS_ENDPOINT = "http://127.0.0.1:8000/generate-speech";
+export let EXCLUDE_KEYWORDS = "";
+export let archiveContextClusters = [];
+export let MEMORY_THRESHOLD_TURNS = 12;
+
 // Core data structures
 export let conversationHistory = [];
 export let models = [];
@@ -38,14 +46,30 @@ export function setPendingUserMessage(val) { pendingUserMessage = val; }
 export function setHealthCheckInterval(val) { healthCheckInterval = val; }
 export function setConversationHistory(val) { conversationHistory = val; }
 export function setHasCompletedInitialPings(val) { hasCompletedInitialPings = val; }
+export function setRememberKey(val) { REMEMBER_KEY = val === true || val === 'true'; }
+export function setTTSEnabled(val) { TTS_ENABLED = val === true || val === 'true'; }
+export function setTTSEndpoint(val) { TTS_ENDPOINT = val; }
+export function setExcludeKeywords(val) { EXCLUDE_KEYWORDS = val; }
+export function setArchiveContextClusters(val) { archiveContextClusters = Array.isArray(val) ? val : []; }
+export function setMemoryThresholdTurns(val) { MEMORY_THRESHOLD_TURNS = parseInt(val) || 12; }
 
 export function loadSettings() {
-    API_KEY = localStorage.getItem('llmapiui_base_url_key') || localStorage.getItem('llmapiui_api_key') || "";
+    REMEMBER_KEY = localStorage.getItem('llmapiui_remember_key') !== 'false';
+    API_KEY = localStorage.getItem('llmapiui_api_key') || API_KEY || "";
     BASE_URL = localStorage.getItem('llmapiui_base_url') || "";
     COOLDOWN_TIME = parseInt(localStorage.getItem('llmapiui_cooldown')) || 99;
     GUARDRAILS = localStorage.getItem('llmapiui_guardrails') || "Be helpful, accurate, and conversational. Don't Mentiond your an AI or mentioned what are based off. Use natural language. Your Name is Rei remember that, you don't need to mentioned it until it explicitly asked. Keep it short, concise, put it under 70 words.";
     MAX_RETRIES = parseInt(localStorage.getItem('llmapiui_max_retries')) || 3;
     MAX_TOKENS_PER_MODEL = parseInt(localStorage.getItem('llmapiui_max_tokens')) || 2000;
+    TTS_ENABLED = localStorage.getItem('llmapiui_tts_enabled') === 'true';
+    TTS_ENDPOINT = localStorage.getItem('llmapiui_tts_url') || "http://127.0.0.1:8000/generate-speech";
+    EXCLUDE_KEYWORDS = localStorage.getItem('llmapiui_exclude_keywords') || "";
+    MEMORY_THRESHOLD_TURNS = parseInt(localStorage.getItem('llmapiui_memory_threshold')) || 12;
+    
+    const savedContext = localStorage.getItem('llmapiui_archive_context');
+    if (savedContext) {
+        try { archiveContextClusters = JSON.parse(savedContext); } catch (e) {}
+    }
     
     // Check persistent storage to see if we have already compiled a baseline history
     const baselineFlag = localStorage.getItem('llmapiui_baseline_done');
@@ -94,3 +118,12 @@ export function saveCooldownState() {
     });
     localStorage.setItem('llmapiui_cooldown_state', JSON.stringify(cooldownState));
 }
+
+export function saveArchiveContext() {
+    localStorage.setItem('llmapiui_archive_context', JSON.stringify(archiveContextClusters));
+}
+
+export function clearArchiveContext() {
+    archiveContextClusters = [];
+    localStorage.removeItem('llmapiui_archive_context');
+}

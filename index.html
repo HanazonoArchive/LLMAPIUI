@@ -22,54 +22,16 @@
         </div>
 
         <div class="settings-section">
-          <div class="section-title"><i class="fa-solid fa-network-wired"></i> Connection</div>
-          <div class="form-group">
-            <label>Base URL</label>
-            <input
-              type="text"
-              id="input-url"
-              placeholder="http://localhost:0000/v1"
-            />
+          <div class="section-title"><i class="fa-solid fa-network-wired"></i> Connection Status</div>
+          <div class="connection-status-panel" style="margin-bottom: 12px; background: var(--bg-input); padding: 12px; border-radius: 10px; border: 1px solid var(--border);">
+            <div class="status-indicator" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+              <span id="connection-state-dot" class="status-dot status-red"></span>
+              <span id="connection-state-text" class="status-text" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">Disconnected</span>
+            </div>
+            <span class="connection-url-display" id="connection-url-display" style="font-size: 0.7rem; color: var(--text-muted); font-family: monospace; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">No endpoint connected</span>
           </div>
-          <div class="form-group">
-            <label>API Key</label>
-            <input type="password" id="input-key" placeholder="your-api-key" />
-          </div>
-          <div class="form-group">
-            <label>Cooldown (seconds)</label>
-            <input
-              type="number"
-              id="input-cooldown"
-              value="99"
-              min="1"
-              max="99"
-            />
-          </div>
-          <div class="form-group">
-            <label>System Guardrails</label>
-            <textarea
-              id="input-guardrails"
-              rows="2"
-              placeholder="Be helpful, accurate, and conversational. Don't Mentiond your an AI or mentioned what are based off. Use natural language. Your Name is Rei remember that, you don't need to mentioned it until it explicitly asked. Keep it short, concise, put it under 70 words."
-            ></textarea>
-          </div>
-          <div class="form-group">
-            <label>Max Retries</label>
-            <input type="number" id="input-retries" value="3" min="1" max="5" />
-          </div>
-          <div class="form-group">
-            <label>Max Tokens per Request</label>
-            <input
-              type="number"
-              id="input-max-tokens"
-              value="2000"
-              min="100"
-              max="8000"
-              step="100"
-            />
-          </div>
-          <button class="btn-primary" onclick="saveSettings()">
-            <i class="fa-solid fa-plug"></i> Save & Connect
+          <button class="btn-primary" id="open-settings-btn" onclick="window.openSettingsModal()">
+            <i class="fa-solid fa-sliders"></i> Gateway Settings
           </button>
         </div>
 
@@ -115,6 +77,113 @@
               <i class="fa-solid fa-circle-info log-icon-info"></i> LLMAPIUI initialized. Configure your endpoint to begin.
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal-overlay">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2><i class="fa-solid fa-sliders"></i> Gateway Settings</h2>
+          <button class="close-modal-btn" onclick="window.closeSettingsModal()">&times;</button>
+        </div>
+        <div class="modal-tabs">
+          <button class="modal-tab-btn active" onclick="window.switchSettingsTab('tab-connection', this)">
+            <i class="fa-solid fa-network-wired"></i> Connection
+          </button>
+          <button class="modal-tab-btn" onclick="window.switchSettingsTab('tab-orchestration', this)">
+            <i class="fa-solid fa-gears"></i> Orchestration
+          </button>
+          <button class="modal-tab-btn" onclick="window.switchSettingsTab('tab-personality', this)">
+            <i class="fa-solid fa-shield-halved"></i> Personality
+          </button>
+          <button class="modal-tab-btn" onclick="window.switchSettingsTab('tab-tts', this)">
+            <i class="fa-solid fa-volume-high"></i> TTS
+          </button>
+        </div>
+        <div class="modal-body">
+          <!-- Connection Panel -->
+          <div id="tab-connection" class="modal-tab-panel active">
+            <div class="form-group">
+              <label>Base URL</label>
+              <input type="text" id="input-url" placeholder="http://localhost:0000/v1" />
+            </div>
+            <div class="form-group">
+              <label>API Key</label>
+              <input type="password" id="input-key" placeholder="your-api-key" />
+            </div>
+            <div class="checkbox-group">
+              <input type="checkbox" id="input-remember-key" class="custom-checkbox" checked />
+              <label for="input-remember-key">Remember API Key in this browser</label>
+            </div>
+            <div class="form-group-row" style="display: flex; gap: 15px;">
+              <div class="form-group" style="flex: 1;">
+                <label>Max Retries</label>
+                <input type="number" id="input-retries" value="3" min="1" max="5" />
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label>Max Tokens per Request</label>
+                <input type="number" id="input-max-tokens" value="2000" min="100" max="8000" step="100" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Orchestration Panel -->
+          <div id="tab-orchestration" class="modal-tab-panel">
+            <div class="form-group-row" style="display: flex; gap: 15px;">
+              <div class="form-group" style="flex: 1;">
+                <label>Cooldown (seconds)</label>
+                <input type="number" id="input-cooldown" value="99" min="1" max="999" />
+              </div>
+              <div class="form-group" style="flex: 1;">
+                <label>Memory Trigger Threshold (Turns)</label>
+                <input type="number" id="input-memory-threshold" value="12" min="4" max="100" step="2" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Auto-Exclude Model Keywords (comma-separated)</label>
+              <input type="text" id="input-exclude-keywords" placeholder="e.g. nemotron, cf, auto" />
+              <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
+                Models matching these keywords will be filtered out.
+              </small>
+            </div>
+            <div class="form-group" style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
+              <label style="display: block; margin-bottom: 8px;">Semantic Memory Archive</label>
+              <button class="btn-secondary" onclick="window.clearMemoryArchiveUI()" style="width: auto; background: var(--error); color: white; border-color: var(--error);">
+                <i class="fa-solid fa-trash-can"></i> Clear Memory Archive Tags
+              </button>
+              <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 6px; display: block;">
+                This resets all math-extracted topic tags accumulated from older conversations.
+              </small>
+            </div>
+          </div>
+
+          <!-- Personality Panel -->
+          <div id="tab-personality" class="modal-tab-panel">
+            <div class="form-group">
+              <label>System Guardrails (Persistent Prompts)</label>
+              <textarea id="input-guardrails" rows="6" placeholder="Instructions for all models..."></textarea>
+            </div>
+          </div>
+
+          <!-- TTS Panel -->
+          <div id="tab-tts" class="modal-tab-panel">
+            <div class="checkbox-group">
+              <input type="checkbox" id="input-tts-enabled" class="custom-checkbox" />
+              <label for="input-tts-enabled">Enable Voice Output (Kokoro-TTS)</label>
+            </div>
+            <div class="form-group">
+              <label>TTS Pipeline Endpoint URL</label>
+              <input type="text" id="input-tts-url" value="http://127.0.0.1:8000/generate-speech" placeholder="http://127.0.0.1:8000/generate-speech" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-secondary" onclick="window.closeSettingsModal()">Cancel</button>
+          <button class="btn-primary" onclick="window.saveSettings()" style="width: auto; padding: 10px 24px;">
+            <i class="fa-solid fa-floppy-disk"></i> Save Settings
+          </button>
         </div>
       </div>
     </div>
