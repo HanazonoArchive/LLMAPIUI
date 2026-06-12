@@ -1,13 +1,21 @@
 import * as State from '../state.js';
 import { fetchWithRetry } from './utils.js';
+import { searchMemoriesFromServer } from '../rag/client.js';
 
 export async function callModel(model, prompt, maxTokens = 2000) {
     const cleanHistory = State.conversationHistory.filter(msg => msg.role !== 'system');
     
     let systemContent = `SYSTEM RULES (PERMANENT):\n${State.GUARDRAILS}\n\nThese rules apply to ALL responses in this conversation. You must follow them strictly.`;
-    if (State.archiveContextClusters && State.archiveContextClusters.length > 0) {
-        const clusterStrings = State.archiveContextClusters.map(c => typeof c === 'string' ? c : c.tag);
-        systemContent += `\n\n[CONTEXT CLUSTERS (HISTORICAL INTERACTION THEMES): ${clusterStrings.join(' • ')}]`;
+    
+    // Inject Vector RAG memories
+    try {
+        const memories = await searchMemoriesFromServer(State.currentSessionId, prompt, 3);
+        if (memories && memories.length > 0) {
+            const memoriesStr = memories.map((m, i) => `[Memory #${i+1}] User: ${m.user}\nAssistant: ${m.assistant}`).join('\n\n');
+            systemContent += `\n\n[RETRIEVED CONTEXT (RELEVANT PAST CONVERSATIONS)]:\n${memoriesStr}\n\nUse this context if relevant to help answer the user.`;
+        }
+    } catch (e) {
+        console.error('[RAG] Context injection failed:', e);
     }
     
     const messagesPayload = [
@@ -43,9 +51,16 @@ export async function* callModelStream(model, prompt, maxTokens = 2000) {
     const cleanHistory = State.conversationHistory.filter(msg => msg.role !== 'system');
     
     let systemContent = `SYSTEM RULES (PERMANENT):\n${State.GUARDRAILS}\n\nThese rules apply to ALL responses in this conversation. You must follow them strictly.`;
-    if (State.archiveContextClusters && State.archiveContextClusters.length > 0) {
-        const clusterStrings = State.archiveContextClusters.map(c => typeof c === 'string' ? c : c.tag);
-        systemContent += `\n\n[CONTEXT CLUSTERS (HISTORICAL INTERACTION THEMES): ${clusterStrings.join(' • ')}]`;
+    
+    // Inject Vector RAG memories
+    try {
+        const memories = await searchMemoriesFromServer(State.currentSessionId, prompt, 3);
+        if (memories && memories.length > 0) {
+            const memoriesStr = memories.map((m, i) => `[Memory #${i+1}] User: ${m.user}\nAssistant: ${m.assistant}`).join('\n\n');
+            systemContent += `\n\n[RETRIEVED CONTEXT (RELEVANT PAST CONVERSATIONS)]:\n${memoriesStr}\n\nUse this context if relevant to help answer the user.`;
+        }
+    } catch (e) {
+        console.error('[RAG] Context stream injection failed:', e);
     }
     
     const messagesPayload = [

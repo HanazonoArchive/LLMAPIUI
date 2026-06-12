@@ -11,6 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.appendMessage = UI.appendMessage;
     window.showTypingIndicator = UI.showTypingIndicator;
     window.hideTypingIndicator = UI.hideTypingIndicator;
+    window.switchSession = switchSession;
+    window.createNewSession = createNewSession;
+    window.renameActiveSession = renameActiveSession;
+    window.deleteActiveSession = deleteActiveSession;
+    window.toggleSessionDropdown = toggleSessionDropdown;
 
     if (!State.securityWarningShown) {
         console.warn('API Key stored in localStorage - This is safe for personal use only. Do not deploy publicly.');
@@ -18,6 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     const activeSession = State.loadSettings();
+    UI.renderSessionsDropdown();
+    UI.updateTokenThermometer();
     if (activeSession) {
         UI.renderSavedChat();
         UI.renderMemoryClusters();
@@ -26,25 +33,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    const fields = {
-        'input-url': State.BASE_URL, 
-        'input-key': State.API_KEY, 
-        'input-cooldown': State.COOLDOWN_TIME,
-        'input-guardrails': State.GUARDRAILS, 
-        'input-retries': State.MAX_RETRIES, 
-        'input-max-tokens': State.MAX_TOKENS_PER_MODEL
+    // Populate all settings fields from State (single source of truth)
+    const textFields = {
+        'input-url':              State.BASE_URL,
+        'input-key':              State.API_KEY,
+        'input-cooldown':         State.COOLDOWN_TIME,
+        'input-guardrails':       State.GUARDRAILS,
+        'input-retries':          State.MAX_RETRIES,
+        'input-max-tokens':       State.MAX_TOKENS_PER_MODEL,
+        'input-memory-threshold': State.MEMORY_THRESHOLD_TURNS,
+        'input-tts-url':          State.TTS_ENDPOINT,
+        'input-exclude-keywords': State.EXCLUDE_KEYWORDS,
+        'input-temperature':      State.TEMPERATURE,
+        'input-top-p':            State.TOP_P,
     };
-    Object.keys(fields).forEach(id => {
+    Object.entries(textFields).forEach(([id, val]) => {
         const el = document.getElementById(id);
-        if (el) el.value = fields[id];
+        if (el) el.value = val;
     });
+
+    // Checkboxes
+    const rememberKeyEl = document.getElementById('input-remember-key');
+    if (rememberKeyEl) rememberKeyEl.checked = State.REMEMBER_KEY;
+    const ttsEnabledEl = document.getElementById('input-tts-enabled');
+    if (ttsEnabledEl) ttsEnabledEl.checked = State.TTS_ENABLED;
+
+    // Slider display spans
+    const tempDisplay = document.getElementById('display-temperature');
+    if (tempDisplay) tempDisplay.innerText = State.TEMPERATURE;
+    const topPDisplay = document.getElementById('display-top-p');
+    if (topPDisplay) topPDisplay.innerText = State.TOP_P;
 
     API.fetchModels();
     if (State.ENABLE_HEALTH_CHECKS) API.startHealthChecks();
     
     const inputField = document.getElementById('user-input');
     if (inputField) {
-        inputField.addEventListener('keypress', (e) => {
+        // Auto-resize textarea as user types
+        inputField.addEventListener('input', () => {
+            inputField.style.height = 'auto';
+            inputField.style.height = Math.min(inputField.scrollHeight, 160) + 'px';
+        });
+
+        // Enter = send, Shift+Enter = new line
+        inputField.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
@@ -65,6 +97,7 @@ async function sendMessage() {
     if (!rawPrompt) return;
 
     inputField.value = '';
+    inputField.style.height = 'auto';
     UI.appendMessage(rawPrompt, 'user');
 
     let prompt = redactContent(rawPrompt);
@@ -92,6 +125,11 @@ async function sendMessage() {
         if (typeof marked !== "undefined" && typeof DOMPurify !== "undefined") {
             const rawHtml = marked.parse(safeText, { breaks: true, gfm: true });
             assistantBubble.innerHTML = DOMPurify.sanitize(rawHtml);
+            assistantBubble.querySelectorAll('pre code').forEach(el => {
+                if (typeof hljs !== 'undefined') {
+                    hljs.highlightElement(el);
+                }
+            });
         } else {
             assistantBubble.innerText = safeText;
         }
@@ -131,6 +169,7 @@ async function sendMessage() {
         API.trimConversationHistory();
         localStorage.setItem('llmapiui_memory', JSON.stringify(State.conversationHistory));
         State.setPendingUserMessage(null);
+        UI.updateTokenThermometer();
         
     } catch (error) {
         UI.hideTypingIndicator();
@@ -355,6 +394,7 @@ function saveSettings() {
     
     log("Settings saved.", "success");
     State.loadSettings();
+    UI.updateTokenThermometer();
     
     if (window.closeSettingsModal) {
         window.closeSettingsModal();
@@ -363,6 +403,92 @@ function saveSettings() {
     API.fetchModels();
 }
 
+function clearConversation() {
+    if (!confirm('Clear all messages and start fresh in this session? This cannot be undone.')) return;
+    State.setConversationHistory([]);
+    State.setSystemMessageAdded(false);
+    State.setPendingUserMessage(null);
+    localStorage.removeItem('llmapiui_memory');
+    UI.clearChatUI();
+    UI.updateTokenThermometer();
+    log('Conversation cleared.', 'warning');
+}
+
+function resetGuardrailsToDefault() {
+    localStorage.removeItem('llmapiui_guardrails');
+    // Re-run loadSettings so State.GUARDRAILS picks up the code default
+    State.loadSettings();
+    const el = document.getElementById('input-guardrails');
+    if (el) el.value = State.GUARDRAILS;
+    log('Guardrails reset to default Rei persona.', 'success');
+}
+
+function switchSession(id) {
+    if (State.switchSession(id)) {
+        UI.clearChatUI();
+        UI.renderSavedChat();
+        UI.renderSessionsDropdown();
+        UI.updateTokenThermometer();
+        UI.renderMemoryClusters();
+        log(`Switched to session: ${State.sessions.find(s => s.id === id).name}`, 'info');
+    }
+}
+
+function createNewSession() {
+    const name = prompt("Enter a name for the new session:", `Session ${State.sessions.length + 1}`);
+    if (name === null) return; // cancelled
+    const sessionName = name.trim() || `Session ${State.sessions.length + 1}`;
+    
+    const sess = State.createNewSession(sessionName);
+    UI.clearChatUI();
+    UI.renderSessionsDropdown();
+    UI.updateTokenThermometer();
+    UI.renderMemoryClusters();
+    log(`Created new session: ${sess.name}`, 'success');
+}
+
+function renameActiveSession() {
+    const active = State.sessions.find(s => s.id === State.currentSessionId);
+    if (!active) return;
+    const newName = prompt(`Rename session "${active.name}" to:`, active.name);
+    if (!newName || !newName.trim()) return;
+    active.name = newName.trim();
+    State.saveSessions();
+    UI.renderSessionsDropdown();
+    log(`Session renamed to "${active.name}"`, 'success');
+}
+
+function deleteActiveSession() {
+    const active = State.sessions.find(s => s.id === State.currentSessionId);
+    if (!active) return;
+    if (!confirm(`Are you sure you want to delete session "${active.name}"?`)) return;
+    
+    State.deleteSession(State.currentSessionId);
+    UI.clearChatUI();
+    UI.renderSavedChat();
+    UI.renderSessionsDropdown();
+    UI.updateTokenThermometer();
+    UI.renderMemoryClusters();
+    log(`Session deleted.`, 'warning');
+}
+
+function toggleSessionDropdown(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('session-dropdown-menu');
+    const trigger = document.getElementById('session-dropdown-trigger');
+    if (!menu || !trigger) return;
+    const isOpen = menu.classList.contains('open');
+    menu.classList.toggle('open', !isOpen);
+    trigger.classList.toggle('open', !isOpen);
+}
+
 window.sendMessage = sendMessage;
 window.saveSettings = saveSettings;
+window.clearConversation = clearConversation;
+window.resetGuardrailsToDefault = resetGuardrailsToDefault;
 window.clearLogs = clearLogs;
+window.switchSession = switchSession;
+window.createNewSession = createNewSession;
+window.renameActiveSession = renameActiveSession;
+window.deleteActiveSession = deleteActiveSession;
+window.toggleSessionDropdown = toggleSessionDropdown;

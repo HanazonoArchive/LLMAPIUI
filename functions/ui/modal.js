@@ -63,14 +63,16 @@ export function switchSettingsTab(tabId, tabBtn) {
 }
 
 export function clearMemoryArchiveUI() {
-    if (confirm("Are you sure you want to clear all semantic memory context tags?")) {
-        State.clearArchiveContext();
-        log("Semantic memory archive tags cleared.", "success");
-        
-        import('./memoryViewer.js').then(m => {
-            m.renderMemoryClusters();
+    if (confirm("Are you sure you want to clear all semantic memories for this session? This cannot be undone.")) {
+        import('../rag/client.js').then(async (RAG) => {
+            const success = await RAG.clearMemoriesOnServer(State.currentSessionId);
+            if (success) {
+                log("Semantic memory archive cleared on server.", "success");
+                import('./memoryViewer.js').then(m => {
+                    m.renderMemoryClusters();
+                });
+                alert("Memory archive successfully cleared.");
+            }
         });
-        
-        alert("Memory archive tags successfully cleared.");
     }
 }

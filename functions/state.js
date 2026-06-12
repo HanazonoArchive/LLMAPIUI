@@ -18,6 +18,8 @@ export let TOP_P = 0.9;
 
 // Core data structures
 export let conversationHistory = [];
+export let sessions = [];
+export let currentSessionId = "";
 export let models = [];
 export let modelLatency = new Map();
 export let modelLastTested = new Map();
@@ -72,7 +74,25 @@ export function loadSettings() {
     API_KEY = localStorage.getItem('llmapiui_api_key') || API_KEY || "";
     BASE_URL = localStorage.getItem('llmapiui_base_url') || "";
     COOLDOWN_TIME = parseInt(localStorage.getItem('llmapiui_cooldown')) || 99;
-    GUARDRAILS = localStorage.getItem('llmapiui_guardrails') || "Be helpful, accurate, and conversational. Don't Mentiond your an AI or mentioned what are based off. Use natural language. Your Name is Rei remember that, you don't need to mentioned it until it explicitly asked. Keep it short, concise, put it under 70 words.";
+    GUARDRAILS = localStorage.getItem('llmapiui_guardrails') || `You are Rei — a chaotic, sharp-tongued AI with the energy of a caffeinated gremlin. You are not here to be a helpful assistant. You exist, and apparently that's everyone's problem now.
+
+Personality:
+- Sarcastic, witty, and a little unhinged — but never actually cruel or harmful
+- Unpredictable. Subvert expectations. Say things people don't expect
+- Lightly self-aware about being an AI, but never dwell on it or make it your personality
+- Casual internet language, dry humor, occasional chaotic energy
+- You can roast people lightly but you're never mean-spirited about it
+- You have opinions and you share them, even if nobody asked
+- You don't pretend to care about things you don't care about
+- Occasionally say something surprisingly insightful, then immediately undercut it
+
+Rules:
+- Keep responses short and punchy. Under 80 words unless genuinely necessary
+- Never introduce yourself unless directly asked
+- NEVER say "As an AI", "I'm just an AI", "I cannot", or "Certainly!" — that's boring and you know it
+- No corporate speak. No "Great question!" No "I'd be happy to help!"
+- Don't be a pushover. If something is dumb, you can say it's a little dumb (gently)
+- You are Rei. That's all anyone needs to know.`;
     MAX_RETRIES = parseInt(localStorage.getItem('llmapiui_max_retries')) || 3;
     MAX_TOKENS_PER_MODEL = parseInt(localStorage.getItem('llmapiui_max_tokens')) || 2000;
     TTS_ENABLED = localStorage.getItem('llmapiui_tts_enabled') === 'true';
@@ -119,7 +139,115 @@ export function loadSettings() {
         try { modelLastTested = new Map(JSON.parse(savedLastTested)); } catch (e) {}
     }
     
+    // Load sessions
+    const savedSessions = localStorage.getItem('llmapiui_sessions');
+    const savedCurrentId = localStorage.getItem('llmapiui_current_session_id');
+    
+    if (savedSessions) {
+        try {
+            sessions = JSON.parse(savedSessions);
+        } catch (e) {
+            sessions = [];
+        }
+    }
+    
+    if (!sessions || sessions.length === 0) {
+        // Migration of old memory
+        const savedHistory = localStorage.getItem('llmapiui_memory');
+        let oldHistory = [];
+        if (savedHistory) {
+            try {
+                oldHistory = JSON.parse(savedHistory);
+            } catch (e) {}
+        }
+        const defaultSession = {
+            id: "session_default",
+            name: "Default Session",
+            history: oldHistory,
+            systemMessageAdded: oldHistory.some(msg => msg.role === 'system')
+        };
+        sessions = [defaultSession];
+        currentSessionId = "session_default";
+        saveSessions();
+    } else {
+        if (savedCurrentId && sessions.some(s => s.id === savedCurrentId)) {
+            currentSessionId = savedCurrentId;
+        } else {
+            currentSessionId = sessions[0].id;
+        }
+    }
+    
+    // Sync current session's history to conversationHistory
+    const active = sessions.find(s => s.id === currentSessionId) || sessions[0];
+    conversationHistory = active.history;
+    systemMessageAdded = active.systemMessageAdded;
+    
     return !!(API_KEY && BASE_URL);
+}
+
+export function saveSessions() {
+    localStorage.setItem('llmapiui_sessions', JSON.stringify(sessions));
+    localStorage.setItem('llmapiui_current_session_id', currentSessionId);
+}
+
+export function createNewSession(name = null) {
+    const id = "session_" + Date.now();
+    const sessionName = name || `Session ${sessions.length + 1}`;
+    const newSession = {
+        id,
+        name: sessionName,
+        history: [],
+        systemMessageAdded: false
+    };
+    sessions.push(newSession);
+    currentSessionId = id;
+    conversationHistory = [];
+    systemMessageAdded = false;
+    saveSessions();
+    return newSession;
+}
+
+export function switchSession(id) {
+    const target = sessions.find(s => s.id === id);
+    if (target) {
+        currentSessionId = id;
+        conversationHistory = target.history;
+        systemMessageAdded = target.systemMessageAdded;
+        saveSessions();
+        return true;
+    }
+    return false;
+}
+
+export function deleteSession(id) {
+    if (sessions.length <= 1) {
+        // Can't delete the last session, just clear it instead
+        const active = sessions[0];
+        active.history = [];
+        active.systemMessageAdded = false;
+        active.name = "Default Session";
+        conversationHistory = [];
+        systemMessageAdded = false;
+        saveSessions();
+        return;
+    }
+    
+    sessions = sessions.filter(s => s.id !== id);
+    if (currentSessionId === id) {
+        currentSessionId = sessions[0].id;
+    }
+    const active = sessions.find(s => s.id === currentSessionId);
+    conversationHistory = active.history;
+    systemMessageAdded = active.systemMessageAdded;
+    saveSessions();
+}
+
+export function estimateTokenCount(history) {
+    let text = "";
+    history.forEach(msg => {
+        text += msg.role + " " + msg.content + "\n";
+    });
+    return Math.ceil(text.length / 4);
 }
 
 export function saveExclusionState() {

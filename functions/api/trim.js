@@ -1,8 +1,8 @@
 import * as State from '../state.js';
 import { log } from '../logger.js';
-import * as MemoryMath from '../memoryMath.js';
+import { archiveMessagesToServer } from '../rag/client.js';
 
-export function trimConversationHistory() {
+export async function trimConversationHistory() {
     const threshold = State.MEMORY_THRESHOLD_TURNS || 12;
     
     // Find system message
@@ -16,50 +16,23 @@ export function trimConversationHistory() {
     const sliceToArchive = rawHistory.slice(0, archiveCount);
     const remainingHistory = rawHistory.slice(archiveCount);
     
-    log(`[Memory Engine] Compressing oldest ${archiveCount} stale messages...`, 'info');
+    log(`[Memory Engine] Moving oldest ${archiveCount} stale messages to local Vector RAG store...`, 'info');
     
-    // Extract new tags
-    const newTags = MemoryMath.archiveHistorySlice(sliceToArchive, 4);
+    // Send to RAG server backend
+    const success = await archiveMessagesToServer(State.currentSessionId, sliceToArchive);
+    if (success) {
+        // Dynamic import to avoid circular dependency locks and update the UI
+        import('../ui.js').then(m => {
+            if (m.renderMemoryClusters) {
+                m.renderMemoryClusters();
+            }
+            if (m.updateTokenThermometer) {
+                m.updateTokenThermometer();
+            }
+        });
+    }
     
-    // Merge tags with temporal decay
-    const clusterMap = new Map();
-    
-    // Decay existing tags
-    State.archiveContextClusters.forEach(c => {
-        if (typeof c === 'string') {
-            clusterMap.set(c, 0.75);
-        } else if (c && c.tag) {
-            clusterMap.set(c.tag, c.weight * 0.75);
-        }
-    });
-    
-    // Add new tags with weight 1.0 (reinforcing if already exists)
-    newTags.forEach(tag => {
-        const currentWeight = clusterMap.get(tag) || 0;
-        clusterMap.set(tag, Math.min(1.0, currentWeight + 1.0));
-    });
-    
-    // Filter out very weak tags, sort by weight descending, and keep up to 8
-    let mergedTags = Array.from(clusterMap.entries())
-        .map(([tag, weight]) => ({ tag, weight }))
-        .filter(c => c.weight >= 0.15)
-        .sort((a, b) => b.weight - a.weight)
-        .slice(0, 8);
-    
-    State.setArchiveContextClusters(mergedTags);
-    State.saveArchiveContext();
-    
-    const tagDisplayList = mergedTags.map(c => `${c.tag} (${c.weight.toFixed(2)})`);
-    log(`[Memory Engine] Memory digested. Added: ${newTags.join(', ') || 'none'}. Archive context: ${tagDisplayList.join(', ')}`, 'success');
-    
-    // Dynamic import to avoid circular dependency locks and update the UI
-    import('../ui.js').then(m => {
-        if (m.renderMemoryClusters) {
-            m.renderMemoryClusters();
-        }
-    });
-    
-    // Save updated history
+    // Save updated history locally on client state
     const newHistory = systemMessage ? [systemMessage, ...remainingHistory] : remainingHistory;
     State.setConversationHistory(newHistory);
 }

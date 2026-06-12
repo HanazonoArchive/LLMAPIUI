@@ -3,77 +3,137 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LLMAPIUI</title>
+    <title>LLMAPIUI — Intelligent LLM Gateway</title>
+    <meta name="description" content="A powerful, modular LLM gateway UI with semantic memory, multi-model routing, and Kokoro TTS integration." />
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
     <link rel="stylesheet" href="styles.css" />
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- Markdown + Sanitizer + Syntax Highlighting -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
   </head>
   <body>
     <div class="app-container">
-      <div class="sidebar">
+
+      <!-- ═══════════════════════════════════════════
+           LEFT SIDEBAR — Connection & Model Pool
+           ═══════════════════════════════════════════ -->
+      <aside class="sidebar">
         <div class="sidebar-header">
           <div class="logo">
             <span class="logo-text">LLMAPIUI</span>
+            <span class="logo-badge">v2</span>
           </div>
         </div>
 
-        <div class="settings-section">
-          <div class="section-title"><i class="fa-solid fa-network-wired"></i> Connection Status</div>
-          <div class="connection-status-panel" style="margin-bottom: 12px; background: var(--bg-input); padding: 12px; border-radius: 10px; border: 1px solid var(--border);">
-            <div class="status-indicator" style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-              <span id="connection-state-dot" class="status-dot status-red"></span>
-              <span id="connection-state-text" class="status-text" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">Disconnected</span>
+        <div class="sidebar-scroll">
+          <!-- Connection Status -->
+          <div class="settings-section">
+            <div class="section-title">
+              <i class="fa-solid fa-network-wired"></i> Connection Status
             </div>
-            <span class="connection-url-display" id="connection-url-display" style="font-size: 0.7rem; color: var(--text-muted); font-family: monospace; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">No endpoint connected</span>
+            <div class="connection-status-panel">
+              <div class="status-indicator">
+                <span id="connection-state-dot" class="status-dot status-red"></span>
+                <span id="connection-state-text" class="status-text">Disconnected</span>
+              </div>
+              <span class="connection-url-display" id="connection-url-display">No endpoint connected</span>
+            </div>
+            <button class="btn-primary" id="open-settings-btn" onclick="window.openSettingsModal()">
+              <i class="fa-solid fa-sliders"></i> Gateway Settings
+            </button>
           </div>
-          <button class="btn-primary" id="open-settings-btn" onclick="window.openSettingsModal()">
-            <i class="fa-solid fa-sliders"></i> Gateway Settings
-          </button>
+
+          <!-- Model Pool -->
+          <div class="pool-header">
+            <span class="pool-title"><i class="fa-solid fa-server"></i> Model Pool</span>
+            <span class="pool-count" id="pool-count">0/0</span>
+          </div>
+          <div class="model-list" id="model-list">
+            <div class="empty-state">Loading models...</div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ═══════════════════════════════════════════
+           CENTER — Chat Interface
+           ═══════════════════════════════════════════ -->
+      <main class="main-content">
+        <!-- Top bar -->
+        <div class="chat-topbar">
+          <div class="chat-topbar-left">
+            <div class="chat-topbar-title">
+              <i class="fa-solid fa-message"></i> Chat
+            </div>
+            <div class="session-controls">
+              <div class="custom-dropdown" id="session-dropdown-container">
+                <button class="dropdown-trigger" id="session-dropdown-trigger" onclick="window.toggleSessionDropdown(event)">
+                  <span id="session-dropdown-label">Default Session</span>
+                  <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <div class="dropdown-menu" id="session-dropdown-menu"></div>
+              </div>
+              <button class="btn-session-add" onclick="window.createNewSession()" title="Create new session">
+                <i class="fa-solid fa-plus"></i>
+              </button>
+              <button class="btn-session-rename" onclick="window.renameActiveSession()" title="Rename active session" style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; transition: var(--trans-fast);" onmouseenter="this.style.color='var(--accent-light)'; this.style.borderColor='var(--accent)'" onmouseleave="this.style.color='var(--text-secondary)'; this.style.borderColor='var(--border)'">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+              <button class="btn-session-delete" onclick="window.deleteActiveSession()" title="Delete active session" style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); cursor: pointer; transition: var(--trans-fast);" onmouseenter="this.style.color='var(--error)'; this.style.borderColor='rgba(239, 68, 68, 0.4)'" onmouseleave="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border)'">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+          </div>
+          <div class="chat-topbar-actions">
+            <button class="btn-clear-chat" id="clear-chat-btn" onclick="window.clearConversation()" title="Clear all messages in active session">
+              <i class="fa-solid fa-trash-can"></i> Clear Chat
+            </button>
+          </div>
         </div>
 
-        <div class="pool-header">
-          <span class="pool-title"><i class="fa-solid fa-server"></i> Model Pool</span>
-          <span class="pool-count" id="pool-count">0/0</span>
-        </div>
-        <div class="model-list" id="model-list">
-          <div class="empty-state">Loading models...</div>
+        <!-- Token Thermometer -->
+        <div class="token-thermometer-container" id="token-thermometer-container" title="Estimated context window usage for active model">
+          <div class="token-thermometer-fill" id="token-thermometer-fill" style="width: 0%;"></div>
+          <span class="token-thermometer-text" id="token-thermometer-text">0 / 2,000 tokens (0%)</span>
         </div>
 
-        <div class="memory-header">
-          <span class="memory-title"><i class="fa-solid fa-brain"></i> Memory Archive</span>
-        </div>
-        <div class="memory-list" id="memory-list-container">
-          <div class="empty-state">No semantic memory tags active.</div>
-        </div>
-      </div>
-
-      <div class="main-content">
+        <!-- Chat messages -->
         <div class="chat-container" id="chat-container">
           <div class="welcome-message">
             <div class="welcome-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
             <div class="welcome-title">LLMAPIUI</div>
-            <div class="welcome-desc">Welcome to LLMAPIUI!</div>
+            <div class="welcome-desc">Intelligent multi-model gateway with semantic memory. Configure your endpoint to begin.</div>
           </div>
         </div>
 
+        <!-- Input -->
         <div class="input-area">
           <div class="input-wrapper">
-            <input
-              type="text"
+            <textarea
               class="user-input"
               id="user-input"
-              placeholder="Ask me anything... (press Enter to send)"
-            />
-            <button class="send-btn" onclick="sendMessage()">
+              placeholder="Ask anything... (Enter to send, Shift+Enter for new line)"
+              rows="1"
+              autocomplete="off"
+            ></textarea>
+            <button class="send-btn" id="send-btn" onclick="sendMessage()">
               <i class="fa-solid fa-paper-plane"></i> Send
             </button>
           </div>
         </div>
 
+        <!-- System Logs -->
         <div class="logs-area">
           <div class="logs-header">
             <span><i class="fa-solid fa-terminal"></i> System Logs</span>
@@ -85,10 +145,31 @@
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </main>
 
-    <!-- Settings Modal -->
+      <!-- ═══════════════════════════════════════════
+           RIGHT PANEL — Memory Archive + Live2D
+           ═══════════════════════════════════════════ -->
+      <aside class="right-panel">
+        <!-- Memory Archive Section -->
+        <div class="memory-section">
+          <div class="memory-header">
+            <div class="memory-title">
+              <i class="fa-solid fa-brain"></i> Memory Archive
+            </div>
+          </div>
+          <div class="memory-list" id="memory-list-container">
+            <div class="empty-state">No semantic memory tags active.</div>
+          </div>
+        </div>
+
+      </aside>
+
+    </div><!-- /app-container -->
+
+    <!-- ═══════════════════════════════════════════
+         SETTINGS MODAL
+         ═══════════════════════════════════════════ -->
     <div id="settings-modal" class="modal-overlay">
       <div class="modal-content">
         <div class="modal-header">
@@ -110,6 +191,7 @@
           </button>
         </div>
         <div class="modal-body">
+
           <!-- Connection Panel -->
           <div id="tab-connection" class="modal-tab-panel active">
             <div class="form-group">
@@ -124,7 +206,7 @@
               <input type="checkbox" id="input-remember-key" class="custom-checkbox" checked />
               <label for="input-remember-key">Remember API Key in this browser</label>
             </div>
-            <div class="form-group-row" style="display: flex; gap: 15px;">
+            <div style="display: flex; gap: 12px;">
               <div class="form-group" style="flex: 1;">
                 <label>Max Retries</label>
                 <input type="number" id="input-retries" value="3" min="1" max="5" />
@@ -138,30 +220,27 @@
 
           <!-- Orchestration Panel -->
           <div id="tab-orchestration" class="modal-tab-panel">
-            <div class="form-group-row" style="display: flex; gap: 15px;">
+            <div style="display: flex; gap: 12px;">
               <div class="form-group" style="flex: 1;">
                 <label>Cooldown (seconds)</label>
                 <input type="number" id="input-cooldown" value="99" min="1" max="999" />
               </div>
               <div class="form-group" style="flex: 1;">
-                <label>Memory Trigger Threshold (Turns)</label>
+                <label>Memory Trigger (Turns)</label>
                 <input type="number" id="input-memory-threshold" value="12" min="4" max="100" step="2" />
               </div>
             </div>
             <div class="form-group">
-              <label>Auto-Exclude Model Keywords (comma-separated)</label>
+              <label>Auto-Exclude Model Keywords <small style="color: var(--text-muted); font-weight: 400;">(comma-separated)</small></label>
               <input type="text" id="input-exclude-keywords" placeholder="e.g. nemotron, cf, auto" />
-              <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px; display: block;">
-                Models matching these keywords will be filtered out.
-              </small>
             </div>
-            <div class="form-group" style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
-              <label style="display: block; margin-bottom: 8px;">Semantic Memory Archive</label>
-              <button class="btn-secondary" onclick="window.clearMemoryArchiveUI()" style="width: auto; background: var(--error); color: white; border-color: var(--error);">
-                <i class="fa-solid fa-trash-can"></i> Clear Memory Archive Tags
+            <div class="form-group" style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 16px;">
+              <label style="margin-bottom: 10px;">Semantic Memory Archive</label>
+              <button class="btn-secondary" onclick="window.clearMemoryArchiveUI()" style="background: rgba(239,68,68,0.1); color: var(--error); border-color: rgba(239,68,68,0.25);">
+                <i class="fa-solid fa-trash-can"></i> Clear All Memory Tags
               </button>
-              <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 6px; display: block;">
-                This resets all math-extracted topic tags accumulated from older conversations.
+              <small style="color: var(--text-muted); font-size: 0.72rem; margin-top: 6px; display: block;">
+                Resets all TF-IDF extracted topic tags from older conversations.
               </small>
             </div>
           </div>
@@ -173,19 +252,27 @@
                 <label for="input-temperature">Temperature</label>
                 <span id="display-temperature" class="slider-value">0.7</span>
               </div>
-              <input type="range" id="input-temperature" min="0.0" max="2.0" step="0.1" value="0.7" oninput="document.getElementById('display-temperature').innerText = this.value" />
+              <input type="range" id="input-temperature" min="0.0" max="2.0" step="0.1" value="0.7"
+                     oninput="document.getElementById('display-temperature').innerText = this.value" />
             </div>
             <div class="form-group-slider">
               <div class="slider-header">
                 <label for="input-top-p">Top-P</label>
                 <span id="display-top-p" class="slider-value">0.9</span>
               </div>
-              <input type="range" id="input-top-p" min="0.0" max="1.0" step="0.05" value="0.9" oninput="document.getElementById('display-top-p').innerText = this.value" />
+              <input type="range" id="input-top-p" min="0.0" max="1.0" step="0.05" value="0.9"
+                     oninput="document.getElementById('display-top-p').innerText = this.value" />
             </div>
             <div class="form-group">
-              <label>System Guardrails (Persistent Prompts)</label>
-              <textarea id="input-guardrails" rows="6" placeholder="Instructions for all models..."></textarea>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                <label style="margin-bottom: 0;">System Guardrails <small style="color: var(--text-muted); font-weight: 400;">(persistent instructions)</small></label>
+                <button type="button" onclick="window.resetGuardrailsToDefault()" style="font-size: 0.68rem; font-family: 'Inter', sans-serif; font-weight: 600; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); padding: 3px 8px; cursor: pointer; transition: all 0.15s; white-space: nowrap;" onmouseenter="this.style.borderColor='var(--accent)';this.style.color='var(--accent-light)'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">
+                  <i class="fa-solid fa-rotate-left"></i> Reset Default
+                </button>
+              </div>
+              <textarea id="input-guardrails" rows="7" placeholder="Instructions applied to all models..."></textarea>
             </div>
+
           </div>
 
           <!-- TTS Panel -->
@@ -199,7 +286,8 @@
               <input type="text" id="input-tts-url" value="http://127.0.0.1:8000/generate-speech" placeholder="http://127.0.0.1:8000/generate-speech" />
             </div>
           </div>
-        </div>
+
+        </div><!-- /modal-body -->
         <div class="modal-footer">
           <button class="btn-secondary" onclick="window.closeSettingsModal()">Cancel</button>
           <button class="btn-primary" onclick="window.saveSettings()" style="width: auto; padding: 10px 24px;">
@@ -209,7 +297,7 @@
       </div>
     </div>
 
+    <!-- App Entry Point -->
     <script type="module" src="app.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
   </body>
 </html>

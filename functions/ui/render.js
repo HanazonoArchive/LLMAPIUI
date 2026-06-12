@@ -81,3 +81,67 @@ export function highlightModelInUI(modelId) {
     const activeRow = document.getElementById(`item-${CSS.escape(modelId)}`);
     if (activeRow) activeRow.classList.add('active-llm');
 }
+
+export function renderSessionsDropdown() {
+    const menu = document.getElementById('session-dropdown-menu');
+    const label = document.getElementById('session-dropdown-label');
+    if (!menu || !label) return;
+    
+    // Update trigger button label to show the active session name
+    const active = State.sessions.find(s => s.id === State.currentSessionId);
+    if (active) {
+        label.innerText = active.name;
+    }
+    
+    // Rebuild the items list
+    menu.innerHTML = '';
+    State.sessions.forEach(sess => {
+        const item = document.createElement('div');
+        item.className = 'dropdown-item' + (sess.id === State.currentSessionId ? ' active' : '');
+        item.innerHTML = `
+            <i class="fa-solid fa-circle-dot"></i>
+            <span>${sess.name}</span>
+        `;
+        item.onclick = () => {
+            window.switchSession(sess.id);
+            closeSessionDropdown();
+        };
+        menu.appendChild(item);
+    });
+}
+
+function closeSessionDropdown() {
+    const menu = document.getElementById('session-dropdown-menu');
+    const trigger = document.getElementById('session-dropdown-trigger');
+    if (menu) menu.classList.remove('open');
+    if (trigger) trigger.classList.remove('open');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', (e) => {
+    const container = document.getElementById('session-dropdown-container');
+    if (container && !container.contains(e.target)) {
+        closeSessionDropdown();
+    }
+});
+
+
+export function updateTokenThermometer() {
+    const fill = document.getElementById('token-thermometer-fill');
+    const text = document.getElementById('token-thermometer-text');
+    if (!fill || !text) return;
+    
+    const tokenCount = State.estimateTokenCount(State.conversationHistory);
+    const maxTokens = State.MAX_TOKENS_PER_MODEL || 2000;
+    const percentage = Math.min(Math.round((tokenCount / maxTokens) * 100), 100);
+    
+    fill.style.width = `${percentage}%`;
+    text.innerText = `${tokenCount.toLocaleString()} / ${maxTokens.toLocaleString()} tokens (${percentage}%)`;
+    
+    fill.className = 'token-thermometer-fill';
+    if (percentage >= 85) {
+        fill.classList.add('danger');
+    } else if (percentage >= 60) {
+        fill.classList.add('warning');
+    }
+}

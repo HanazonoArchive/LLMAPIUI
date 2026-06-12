@@ -36,6 +36,11 @@ export function appendMessage(text, sender, modelLabel = null) {
         if (typeof marked !== "undefined" && typeof DOMPurify !== "undefined") {
             const rawHtml = marked.parse(text, { breaks: true, gfm: true });
             bubble.innerHTML = DOMPurify.sanitize(rawHtml);
+            bubble.querySelectorAll('pre code').forEach(el => {
+                if (typeof hljs !== 'undefined') {
+                    hljs.highlightElement(el);
+                }
+            });
         } else if (typeof marked !== "undefined" && typeof DOMPurify === "undefined") {
             log(`DOMPurify not loaded - rendering markdown as plain text for security`, 'warning');
             bubble.innerText = text;
@@ -75,6 +80,11 @@ export function renderSavedChat() {
         if (msg.role === 'assistant' && typeof marked !== 'undefined' && typeof DOMPurify !== 'undefined') {
             const rawHtml = marked.parse(msg.content, { breaks: true, gfm: true });
             bubble.innerHTML = DOMPurify.sanitize(rawHtml);
+            bubble.querySelectorAll('pre code').forEach(el => {
+                if (typeof hljs !== 'undefined') {
+                    hljs.highlightElement(el);
+                }
+            });
         } else {
             bubble.innerText = msg.content;
         }
@@ -82,4 +92,16 @@ export function renderSavedChat() {
         container.appendChild(bubble);
     });
     container.scrollTop = container.scrollHeight;
+}
+
+export function clearChatUI() {
+    const container = document.getElementById('chat-container');
+    if (!container) return;
+    container.innerHTML = `
+        <div class="welcome-message">
+            <div class="welcome-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+            <div class="welcome-title">LLMAPIUI</div>
+            <div class="welcome-desc">Intelligent multi-model gateway with semantic memory. Configure your endpoint to begin.</div>
+        </div>
+    `;
 }
