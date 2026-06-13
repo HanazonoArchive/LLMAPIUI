@@ -87,9 +87,27 @@ export function renderSavedChat() {
             if (toolMatch) {
                 displayContent = displayContent.replace(toolMatch[0], '');
             } else {
-                const fallbackMatch = displayContent.match(/{\s*"name"\s*:\s*"[^"]+"\s*,\s*"args"\s*:\s*{[\s\S]*?}\s*}/);
-                if (fallbackMatch) {
-                    displayContent = displayContent.replace(fallbackMatch[0], '');
+                // Fallback: balanced-brace extraction for raw JSON tool calls
+                const nameIdx = displayContent.search(/"name"\s*:\s*"/);
+                if (nameIdx !== -1) {
+                    let braceStart = -1;
+                    for (let i = nameIdx; i >= 0; i--) {
+                        if (displayContent[i] === '{') { braceStart = i; break; }
+                        if (displayContent[i] === '}') break;
+                    }
+                    if (braceStart !== -1) {
+                        let depth = 0;
+                        for (let i = braceStart; i < displayContent.length; i++) {
+                            if (displayContent[i] === '{') depth++;
+                            else if (displayContent[i] === '}') {
+                                depth--;
+                                if (depth === 0) {
+                                    displayContent = displayContent.slice(0, braceStart) + displayContent.slice(i + 1);
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
             }
             displayContent = displayContent.trim();

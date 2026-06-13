@@ -29,9 +29,19 @@ export function renderModelList() {
     container.innerHTML = '';
     const activeCount = State.models.filter(m => m.status === 'green' && !m.excluded).length;
     countSpan.innerText = `${activeCount}/${State.models.length}`;
-    
+
     updateConnectionStatusUI();
-    
+
+    if (State.models.length === 0) {
+        container.innerHTML = '<div class="empty-state">No models loaded. Check your API connection.</div>';
+        return;
+    }
+
+    if (activeCount === 0 && State.models.length > 0) {
+        container.innerHTML = '<div class="empty-state">All models are offline, excluded, or cooling down.</div>';
+        return;
+    }
+
     const sortedModels = [...State.models].sort((a, b) => {
         if (a.status !== b.status) {
             const order = { green: 0, yellow: 1, red: 2 };

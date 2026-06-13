@@ -87,15 +87,18 @@
               <button class="btn-session-add" onclick="window.createNewSession()" title="Create new session">
                 <i class="fa-solid fa-plus"></i>
               </button>
-              <button class="btn-session-rename" onclick="window.renameActiveSession()" title="Rename active session" style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); cursor: pointer; transition: var(--trans-fast);" onmouseenter="this.style.color='var(--accent-light)'; this.style.borderColor='var(--accent)'" onmouseleave="this.style.color='var(--text-secondary)'; this.style.borderColor='var(--border)'">
+              <button class="btn-session-rename" onclick="window.renameActiveSession()" title="Rename active session">
                 <i class="fa-solid fa-pen"></i>
               </button>
-              <button class="btn-session-delete" onclick="window.deleteActiveSession()" title="Delete active session" style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); cursor: pointer; transition: var(--trans-fast);" onmouseenter="this.style.color='var(--error)'; this.style.borderColor='rgba(239, 68, 68, 0.4)'" onmouseleave="this.style.color='var(--text-muted)'; this.style.borderColor='var(--border)'">
+              <button class="btn-session-delete" onclick="window.deleteActiveSession()" title="Delete active session">
                 <i class="fa-solid fa-trash"></i>
               </button>
             </div>
           </div>
           <div class="chat-topbar-actions">
+            <button class="btn-toggle-panel" id="toggle-right-panel-btn" onclick="window.toggleRightPanel()" title="Toggle memory panel">
+              <i class="fa-solid fa-sidebar"></i>
+            </button>
             <button class="btn-clear-chat" id="clear-chat-btn" onclick="window.clearConversation()" title="Clear all messages in active session">
               <i class="fa-solid fa-trash-can"></i> Clear Chat
             </button>
@@ -119,11 +122,6 @@
 
         <!-- Input -->
         <div class="input-area">
-          <div class="input-toolbar" style="margin-bottom: 8px; display: flex; gap: 10px;">
-            <button class="agent-mode-btn" id="agent-mode-btn" onclick="toggleAgentMode()" title="Enable autonomous tools (Uses more tokens)">
-              <i class="fa-solid fa-robot"></i> Agent Mode: OFF
-            </button>
-          </div>
           <div class="input-wrapper">
             <textarea
               class="user-input"
@@ -132,6 +130,9 @@
               rows="1"
               autocomplete="off"
             ></textarea>
+            <button class="agent-mode-btn" id="agent-mode-btn" onclick="toggleAgentMode()" title="Enable autonomous tools (Uses more tokens)">
+              <i class="fa-solid fa-robot"></i>
+            </button>
             <button class="send-btn" id="send-btn" onclick="sendMessage()">
               <i class="fa-solid fa-paper-plane"></i> Send
             </button>
@@ -142,7 +143,12 @@
         <div class="logs-area">
           <div class="logs-header">
             <span><i class="fa-solid fa-terminal"></i> System Logs</span>
-            <span class="clear-logs" onclick="clearLogs()"><i class="fa-solid fa-trash-can"></i> Clear</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="logs-toggle" id="logs-toggle-btn" onclick="window.toggleLogs()" title="Collapse logs">
+                <i class="fa-solid fa-chevron-down"></i>
+              </span>
+              <span class="clear-logs" onclick="clearLogs()"><i class="fa-solid fa-trash-can"></i> Clear</span>
+            </div>
           </div>
           <div class="logs-container" id="logs">
             <div class="log-entry">
@@ -271,7 +277,7 @@
             <div class="form-group">
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                 <label style="margin-bottom: 0;">System Guardrails <small style="color: var(--text-muted); font-weight: 400;">(persistent instructions)</small></label>
-                <button type="button" onclick="window.resetGuardrailsToDefault()" style="font-size: 0.68rem; font-family: 'Inter', sans-serif; font-weight: 600; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); padding: 3px 8px; cursor: pointer; transition: all 0.15s; white-space: nowrap;" onmouseenter="this.style.borderColor='var(--accent)';this.style.color='var(--accent-light)'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">
+                <button type="button" onclick="window.resetGuardrailsToDefault()" class="btn-reset-guardrails">
                   <i class="fa-solid fa-rotate-left"></i> Reset Default
                 </button>
               </div>

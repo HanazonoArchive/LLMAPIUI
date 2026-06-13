@@ -50,19 +50,28 @@ export async function callModel(model, prompt, maxTokens = 2000) {
         ...cleanHistory,
         { role: "user", content: prompt }
     ];
-    
-    const data = await fetchWithRetry(`${State.BASE_URL}/chat/completions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${State.API_KEY}` },
-        body: JSON.stringify({ 
-            model: model.id, 
-            messages: messagesPayload, 
-            temperature: State.TEMPERATURE, 
-            top_p: State.TOP_P, 
-            max_tokens: maxTokens 
-        })
-    });
-    
+
+    // 90s overall timeout via Promise.race (fetchWithRetry has 30s per-attempt,
+    // up to 3 attempts — this guards against the aggregate hanging)
+    const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Request timeout after 90s')), 90000)
+    );
+
+    const data = await Promise.race([
+        fetchWithRetry(`${State.BASE_URL}/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${State.API_KEY}` },
+            body: JSON.stringify({
+                model: model.id,
+                messages: messagesPayload,
+                temperature: State.TEMPERATURE,
+                top_p: State.TOP_P,
+                max_tokens: maxTokens
+            })
+        }),
+        timeoutPromise
+    ]);
+
     if (!data?.choices?.[0]?.message?.content) throw new Error("Invalid response structure");
     
     const modelObj = State.models.find(m => m.id === model.id);
@@ -74,7 +83,7 @@ export async function callModel(model, prompt, maxTokens = 2000) {
     return data.choices[0].message.content;
 }
 
-export async function* callModelStream(model, prompt, maxTokens = 2000) {
+export async function* callModelStream(model, prompt, maxTokens = 2000, signal = null) {
     const cleanHistory = State.conversationHistory.filter(msg => msg.role !== 'system');
     
     let systemContent = `SYSTEM RULES (PERMANENT):\n${State.GUARDRAILS}\n\nThese rules apply to ALL responses in this conversation. You must follow them strictly.`;
@@ -101,18 +110,19 @@ export async function* callModelStream(model, prompt, maxTokens = 2000) {
     
     const response = await fetch(`${State.BASE_URL}/chat/completions`, {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json', 
-            'Authorization': `Bearer ${State.API_KEY}` 
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${State.API_KEY}`
         },
-        body: JSON.stringify({ 
-            model: model.id, 
-            messages: messagesPayload, 
-            temperature: State.TEMPERATURE, 
-            top_p: State.TOP_P, 
+        body: JSON.stringify({
+            model: model.id,
+            messages: messagesPayload,
+            temperature: State.TEMPERATURE,
+            top_p: State.TOP_P,
             max_tokens: maxTokens,
             stream: true
-        })
+        }),
+        signal: signal || undefined
     });
     
     if (!response.ok) {
@@ -174,7 +184,7 @@ export async function* callModelStream(model, prompt, maxTokens = 2000) {
     } finally {
         reader.releaseLock();
     }
-    
+
     const modelObj = State.models.find(m => m.id === model.id);
     if (modelObj) {
         modelObj.failureCount = 0;

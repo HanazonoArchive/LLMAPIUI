@@ -13,6 +13,9 @@ const PRE_EXCLUDED_IDS = [
 ];
 
 export function createMockModels() {
+    // Only create mocks when we have no real models — never overwrite
+    if (State.models.length > 0) return;
+
     const mockPrefixes = [
         'meta-llama/llama-3-70b', 'mistralai/mixtral-8x7b', 'openai/gpt-4o-mini',
         'google/gemma-7b', 'anthropic/claude-3-haiku', 'cohere/command-r'
@@ -110,8 +113,13 @@ export async function fetchModels() {
             throw new Error("No models returned");
         }
     } catch (err) {
-        log(`Fetch failed: ${err.message}. Using fallback.`, 'warning');
-        createMockModels();
+        const reason = (err?.message || String(err)).slice(0, 120);
+        if (State.models.length === 0) {
+            log(`API unreachable (${reason}) — generating mock models for UI continuity only. These models will fail when called. Check your connection and Base URL.`, 'warning');
+            createMockModels();
+        } else {
+            log(`Model refresh failed (${reason}) — keeping previously loaded models.`, 'warning');
+        }
     }
     
     import('../ui.js').then(m => m.renderModelList());

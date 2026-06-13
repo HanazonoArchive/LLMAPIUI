@@ -24,7 +24,6 @@ export let currentSessionId = "";
 export let models = [];
 export let modelLatency = new Map();
 export let modelLastTested = new Map();
-export let responseCache = new Map();
 export let healthCheckInterval = null;
 export let pendingUserMessage = null;
 
