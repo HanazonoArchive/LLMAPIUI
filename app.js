@@ -177,10 +177,11 @@ async function sendMessage() {
                 }
                 
                 if (parseSuccess) {
-                    // Update UI to show tool usage (subtle)
+                    // Update UI to show tool usage
                     const toolIndicator = document.createElement('div');
                     toolIndicator.className = 'tool-indicator';
-                    toolIndicator.innerHTML = `<i class="fa-solid fa-gear fa-spin text-muted"></i> <span>Using tool: <b>${toolName}</b>...</span>`;
+                    const toolStartTime = Date.now();
+                    toolIndicator.innerHTML = `<i class="fa-solid fa-gear fa-spin"></i> <span>Using tool: <b>${toolName}</b>...</span>`;
                     document.getElementById('chat-container').appendChild(toolIndicator);
                     document.getElementById('chat-container').scrollTop = document.getElementById('chat-container').scrollHeight;
                     
@@ -191,11 +192,15 @@ async function sendMessage() {
                             body: JSON.stringify({ name: toolName, args: toolArgs })
                         });
                         const data = await res.json();
+                        const elapsed = Date.now() - toolStartTime;
                         toolResultString = data.success ? data.result : `[Error] ${data.error}`;
-                        toolIndicator.innerHTML = `<i class="fa-solid fa-check text-success"></i> <span>Tool used: <b>${toolName}</b></span>`;
+                        toolIndicator.className = 'tool-indicator tool-success';
+                        toolIndicator.innerHTML = `<i class="fa-solid fa-check"></i> <span><b>${toolName}</b> done <span class="tool-exec-time">(${elapsed}ms)</span></span>`;
                     } catch (err) {
+                        const elapsed = Date.now() - toolStartTime;
                         toolResultString = `[Error] Network failed: ${err.message}`;
-                        toolIndicator.innerHTML = `<i class="fa-solid fa-xmark text-danger"></i> <span>Tool failed: <b>${toolName}</b></span>`;
+                        toolIndicator.className = 'tool-indicator tool-fail';
+                        toolIndicator.innerHTML = `<i class="fa-solid fa-xmark"></i> <span><b>${toolName}</b> failed <span class="tool-exec-time">(${elapsed}ms)</span></span>`;
                     }
                     
                     // Clean the JSON out of the chat bubble so the user doesn't see the ugly raw tool call

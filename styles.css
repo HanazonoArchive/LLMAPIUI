@@ -565,20 +565,39 @@ body::after {
     font-size: 0.65rem;
     color: var(--text-muted);
     background: var(--bg-elevated);
-    padding: 4px 12px;
+    padding: 5px 14px;
     border-radius: 12px;
     border: 1px solid var(--border);
-    margin: 8px 0;
+    margin: 6px 0 2px;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    opacity: 0.8;
+    gap: 7px;
     font-family: 'JetBrains Mono', monospace;
     animation: fadeUp 0.3s ease forwards;
+    transition: var(--trans-mid);
+    user-select: none;
 }
 
 .tool-indicator i {
     font-size: 0.6rem;
+}
+
+.tool-indicator.tool-success {
+    color: var(--success);
+    border-color: rgba(16, 185, 129, 0.25);
+    background: rgba(16, 185, 129, 0.06);
+}
+
+.tool-indicator.tool-fail {
+    color: var(--error);
+    border-color: rgba(239, 68, 68, 0.25);
+    background: rgba(239, 68, 68, 0.06);
+}
+
+.tool-indicator .tool-exec-time {
+    font-size: 0.6rem;
+    opacity: 0.6;
+    margin-left: 2px;
 }
 
 /* Typing Indicator */
